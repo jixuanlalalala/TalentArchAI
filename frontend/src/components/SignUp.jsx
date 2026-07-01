@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { TrendingUp, Network, User, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
+
 const SignUp = () => {
     const { signUp } = useAuth();
     const [fullName, setFullName] = useState('');
@@ -38,7 +39,7 @@ const SignUp = () => {
         setIsSubmitting(true);
 
         try {
-            const { error: signUpError } = await signUp(email, password);
+            const { error: signUpError } = await signUp(email, password, fullName);
 
             if (signUpError) {
                 setError(signUpError.message);
@@ -79,14 +80,11 @@ const SignUp = () => {
 
         {/* Middle Feature Cards */}
         <div className="my-auto py-12 md:py-0 z-10 max-w-md">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-8">
-            Empower your recruiting team.
-          </h1>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Feature Card 1: Predictive Hiring */}
             <div 
-              className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-6 flex flex-col justify-between h-44 shadow-lg cursor-pointer hover:scale-[1.03] hover:-translate-y-0.5 transition-all duration-200"
+              className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-6 flex flex-col justify-between h-60 shadow-lg cursor-pointer hover:scale-[1.03] hover:-translate-y-0.5 transition-all duration-200"
               id="feature-predictive"
             >
               <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center mb-4">
@@ -102,7 +100,7 @@ const SignUp = () => {
 
             {/* Feature Card 2: Team Synergy */}
             <div 
-              className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-6 flex flex-col justify-between h-44 shadow-lg cursor-pointer hover:scale-[1.03] hover:-translate-y-0.5 transition-all duration-200"
+              className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-6 flex flex-col justify-between h-60 shadow-lg cursor-pointer hover:scale-[1.03] hover:-translate-y-0.5 transition-all duration-200"
               id="feature-synergy"
             >
               <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center mb-4">
@@ -118,10 +116,10 @@ const SignUp = () => {
           </div>
         </div>
 
-        {/* Footer info/creds */}
+        {/* Footer info/creds
         <div className="text-white/60 text-xs font-light z-10 hidden md:block">
           © 2026 TalentArch AI. Architecting the future of human capital.
-        </div>
+        </div> */}
       </div>
 
       {/* RIGHT PANEL - Clean off-white Form */}
