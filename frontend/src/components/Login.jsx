@@ -222,6 +222,13 @@ const Login = () => {
                 </>
               )}
             </button>
+            <div>
+              {error && (
+                <p className="text-xs text-red-500 font-medium" id="login-error">
+                  {error}
+                </p>
+              )}
+            </div>
           </form>
 
           {/* FOOTER SWITCHER */}

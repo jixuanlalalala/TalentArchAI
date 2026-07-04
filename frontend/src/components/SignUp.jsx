@@ -22,7 +22,7 @@ const SignUp = () => {
         if (!email.trim()) newErrors.email = 'Email is required';
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Invalid email';
         if (!password) newErrors.password = 'Password is required';
-        if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+        if (password.length < 8) newErrors.password = 'Password must be at least 8 characters';
         return newErrors;
     };
 
