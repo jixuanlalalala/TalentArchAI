@@ -42,12 +42,14 @@ const Login = () => {
         setIsSubmitting(true);
 
         try {
-            const { error } = await signIn(email, password);
+            const { data, error } = await signIn(email, password);
 
             if (error) {
                 setError(error.message);
             } else {
                 navigate("/dashboard");
+                console.log(data.session);
+                console.log("User signed in successfully:", data.session.user);
             }
         } catch {
             setError("An unexpected error occurred. Please try again.");
