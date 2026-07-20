@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import { 
   Users, Briefcase, BarChart3, User, LogOut
 } from 'lucide-react';
+import { useNavigate, Link } from "react-router-dom";
 import {useAuth} from '../context/AuthContext';         
 import JobsTab from './JobsTab';
 import CandidatesTab from './CandidatesTab';
@@ -17,11 +18,14 @@ export default function Dashboard() {
     const [testError, setTestError] = useState('');
     const { user, signOut } = useAuth();
 
+    const navigate = useNavigate();
+
     const handleSignOut = async () => {
         const { error } = await signOut();
         if (error) {
             console.error('Error signing out:', error.message);
         } else {
+            navigate('/login');
             console.log('Signed out successfully');
         }
     };
@@ -122,10 +126,7 @@ export default function Dashboard() {
             <div className="flex-1 flex flex-col min-w-0">
                 {/** Header Bar */}
                 <header className="bg-white border-b border-slate-100 px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
-                    <div className="relative w-full max-w-md">
-                        <p>...planning for a search bar</p>
-                    </div>
-
+                    
                     <button
                         onClick={handleTestConnection}
                         className="px-4 py-2 rounded-full bg-[#1D5BF2] text-white font-semibold hover:bg-[#174dc0] transition"
@@ -146,7 +147,7 @@ export default function Dashboard() {
                 </header>
 
                 {/** Main Content Canvas */}
-                <main>
+                <main className="flex-1 p-8 overflow-y-auto">
                     {(testMessage || testError) && (
                         <div className="m-6 rounded-xl border p-4 text-sm">
                             {testMessage && <p className="text-emerald-700">{testMessage}</p>}
@@ -154,7 +155,12 @@ export default function Dashboard() {
                         </div>
                     )}
                     {activeTab === 'jobs' && (
-                        <JobsTab />
+                        <JobsTab
+                            onViewReport={(jobId) => {
+                                setSelectedJobIdForReport(jobId);
+                                setActiveTab('reports');
+                            }}
+                        />
                     )}
 
                     {activeTab === 'candidates' && (

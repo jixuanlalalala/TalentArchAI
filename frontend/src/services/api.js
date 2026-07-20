@@ -2,68 +2,49 @@ import { supabase } from './supabaseClient';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
-export const testFlaskConnection = async () => {
-  console.log('Interceptor running');
-
+const getAuthHeaders = async () => {
   const { data: { session }, error } = await supabase.auth.getSession();
 
   if (error || !session?.access_token) {
     throw new Error('No Supabase session found. Sign in first.');
   }
 
-  // console.log('Supabase session access token:', session.access_token);
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${session.access_token}`,
+  };
+};
 
-  const response = await fetch(`${API_BASE_URL}/jobs/me`, {
-    method: 'GET',
+export const requestJson = async (path, options = {}) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
+      ...headers,
+      ...(options.headers || {}),
     },
   });
 
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(payload.error || 'Failed to reach Flask backend');
+    throw new Error(payload.error || 'Request failed');
   }
 
   return payload;
 };
 
-// import axios from 'axios';
-// import { supabase } from './supabaseClient';
+export const testFlaskConnection = async () => {
+  return requestJson('/jobs/me');
+};
 
-// const api = axios.create({
-//   baseURL: import.meta.env.VITE_API_URL,
-//   headers: {
-//     'Content-Type': 'application/json',
-//   }
-// });
+// export const fetchJobPostingsFromFlask = async () => {
+//   const payload = await requestJson('/jobs/postings');
+//   return payload.jobs || [];
+// };
 
-// api.interceptors.request.use(async (config) => {
-//   console.log('Interceptor running');
-//   console.log('API URL:', import.meta.env.VITE_API_URL);
-//   const { data: { session }, error } = await supabase.auth.getSession();
-//   console.log('Session:', session);
-
-//   if (error || !session) {
-//     return config;
-//   }
-
-//   config.headers.Authorization = `Bearer ${session.access_token}`;
-//   return config;
-// });
-
-// api.interceptors.response.use(
-//   (response) => response,
-//   async (error) => {
-//     if (error.response?.status === 401) {
-//       await supabase.auth.signOut();
-//       window.location.href = '/login';
-//     }
-//     return Promise.reject(error);
-//   }
-// );
-
-
-// export default api;   // ← this line must be here
+export default {
+  get: (path) => requestJson(path),
+  post: (path, body) => requestJson(path, { method: 'POST', body: JSON.stringify(body) }),
+  delete: (path) => requestJson(path, { method: 'DELETE' }),
+};
