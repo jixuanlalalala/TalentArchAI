@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function CandidatesTab() {
   return (
     <div className="space-y-6">

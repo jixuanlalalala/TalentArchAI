@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 const AuthContext = createContext({});
 
+// Keeping this hook beside its provider avoids changing the existing project structure.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     return useContext(AuthContext);
 };
@@ -13,18 +15,30 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const getInitialSession = async () => {
-            const {
-                data: {session}
-            } = await supabase.auth.getSession();
-            setUser(session?.user ?? null);
-            setLoading(false);
+            try {
+                const {
+                    data: {session},
+                    error,
+                } = await supabase.auth.getSession();
+
+                if (error) {
+                    setUser(null);
+                    return;
+                }
+
+                setUser(session?.user ?? null);
+            } catch {
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
         };
 
         getInitialSession();
 
         const {
             data: {subscription}
-        } = supabase.auth.onAuthStateChange(async(event, session) => {
+        } = supabase.auth.onAuthStateChange((_, session) => {
             setUser(session?.user ?? null);
             setLoading(false);
         });

@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function ProfileTab() {
   return (
     <div className="space-y-6">

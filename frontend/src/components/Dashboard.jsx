@@ -1,22 +1,21 @@
-import React, {useState} from 'react';
+import {useState} from 'react';
 import { 
   Users, Briefcase, BarChart3, User, LogOut
 } from 'lucide-react';
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {useAuth} from '../context/AuthContext';         
 import JobsTab from './JobsTab';
 import CandidatesTab from './CandidatesTab';
 import ReportsTab from './ReportsTab';
 import ProfileTab from './ProfileTab';
 import { testFlaskConnection } from '../services/api';
-import {supabase} from '../services/supabaseClient';
 
 export default function Dashboard() {
 
     const [activeTab, setActiveTab] = useState('jobs');
     const [testMessage, setTestMessage] = useState('');
     const [testError, setTestError] = useState('');
-    const { user, signOut } = useAuth();
+    const { signOut } = useAuth();
 
     const navigate = useNavigate();
 
@@ -26,7 +25,6 @@ export default function Dashboard() {
             console.error('Error signing out:', error.message);
         } else {
             navigate('/login');
-            console.log('Signed out successfully');
         }
     };
 
@@ -35,8 +33,6 @@ export default function Dashboard() {
         setTestError('');
 
         try {
-            const { data: { session }, error } = await supabase.auth.getSession();
-            //console.log('Supabase session:', session.access_token);
             const result = await testFlaskConnection();
             setTestMessage(`Success: ${JSON.stringify(result)}`);
         } catch (error) {
@@ -156,8 +152,7 @@ export default function Dashboard() {
                     )}
                     {activeTab === 'jobs' && (
                         <JobsTab
-                            onViewReport={(jobId) => {
-                                setSelectedJobIdForReport(jobId);
+                            onViewReport={() => {
                                 setActiveTab('reports');
                             }}
                         />

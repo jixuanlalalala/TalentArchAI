@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 
@@ -18,19 +18,23 @@ const ResetPassword = () => {
             return;
         }
 
-        if (password.length < 6) {
-            setError('Password must be at least 6 characters long');
+        if (password.length < 8) {
+            setError('Password must be at least 8 characters long');
             return;
         }
 
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) {
-            setError(error.message);
-        } else {
-            setMessage('Password has been reset successfully. You can now log in with your new password.');
-            setTimeout(() => {
-                navigate('/login');
-            }, 2000);
+        try {
+            const { error: updateError } = await supabase.auth.updateUser({ password });
+            if (updateError) {
+                setError(updateError.message);
+            } else {
+                setMessage('Password has been reset successfully. You can now log in with your new password.');
+                setTimeout(() => {
+                    navigate('/login');
+                }, 2000);
+            }
+        } catch {
+            setError('An unexpected error occurred. Please try again.');
         }
     };
 

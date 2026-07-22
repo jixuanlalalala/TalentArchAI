@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { TrendingUp, Network, User, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
@@ -20,7 +20,7 @@ const SignUp = () => {
         const newErrors = {};
         if (!fullName.trim()) newErrors.fullName = 'Full name is required';
         if (!email.trim()) newErrors.email = 'Email is required';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Invalid email';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Invalid email';
         if (!password) newErrors.password = 'Password is required';
         if (password.length < 8) newErrors.password = 'Password must be at least 8 characters';
         return newErrors;
@@ -29,6 +29,7 @@ const SignUp = () => {
     const handleSubmit = async e => {
         e.preventDefault();
         setError(null);
+        setErrors({});
         
         const newErrors = validateForm();
         if (Object.keys(newErrors).length > 0) {
@@ -47,7 +48,7 @@ const SignUp = () => {
                 setSuccess(true);
                 navigate('/login');
             }
-        } catch (err) {
+        } catch {
             setError('An unexpected error occurred. Please try again.');
         } finally {
             setIsSubmitting(false);

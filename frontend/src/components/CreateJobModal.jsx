@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
 import { X, ChevronDown } from 'lucide-react';
 
 export default function CreateJobModal({
@@ -192,7 +191,7 @@ export default function CreateJobModal({
 
             <button
               type="submit"
-              onClick={onSubmit}
+              disabled={isMaxInvalid}
               className="bg-[#1D5BF2] hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-blue-500/15 transition-all cursor-pointer"
             >
               Create Job

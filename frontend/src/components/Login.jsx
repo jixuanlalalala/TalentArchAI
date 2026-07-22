@@ -1,6 +1,6 @@
-import React, {useState} from "react";
+import {useState} from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2, ShieldAlert, X } from 'lucide-react';
 
 
@@ -23,7 +23,7 @@ const Login = () => {
     const validateForm = () => {
         const newErrors = {};
         if (!email.trim()) newErrors.email = 'Email is required';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Invalid email';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Invalid email';
         if (!password) newErrors.password = 'Password is required';
         return newErrors;
     }
@@ -42,14 +42,12 @@ const Login = () => {
         setIsSubmitting(true);
 
         try {
-            const { data, error } = await signIn(email, password);
+            const { error } = await signIn(email, password);
 
             if (error) {
                 setError(error.message);
             } else {
                 navigate("/dashboard");
-                console.log(data.session);
-                console.log("User signed in successfully:", data.session.user);
             }
         } catch {
             setError("An unexpected error occurred. Please try again.");
@@ -301,6 +299,7 @@ const Login = () => {
                         placeholder="name@company.design"
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
+                        required
                         className="w-full py-4 pr-4 bg-transparent outline-none text-slate-800 font-medium placeholder-slate-400 text-sm"
                       />
                     </div>
