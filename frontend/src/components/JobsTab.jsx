@@ -7,6 +7,8 @@ import { useEffect, useState } from 'react';
 import { Briefcase, Download, PlusCircle, ChevronRight, Trash2, MapPin, Users, ArrowLeft, UploadCloud, Check } from 'lucide-react';
 import CreateJobModal from './CreateJobModal';
 import UploadResumesModal from './UploadResumesModal';
+import JobCandidateAnalysis from './JobCandidateAnalysis';
+import { getJobCandidates } from '../services/candidateService';
 import { createJob, getJobs, deleteJob } from '../services/jobService';
 
 export default function JobsTab({
@@ -18,6 +20,9 @@ export default function JobsTab({
     const [showCreateJobModal, setShowCreateJobModal] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [selectedJobId, setSelectedJobId] = useState(null);
+    const [jobCandidates, setJobCandidates] = useState([]);
+    const [loadingJobCandidates, setLoadingJobCandidates] = useState(false);
+    const [jobCandidatesError, setJobCandidatesError] = useState('');
     const selectedJob = jobs.find((job) => job.id === selectedJobId);
 
     const [jobForm, setJobForm] = useState({
@@ -56,6 +61,52 @@ export default function JobsTab({
             isMounted = false;
         };
     }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        if (!selectedJobId) {
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        const loadCandidates = async () => {
+            setLoadingJobCandidates(true);
+            setJobCandidatesError('');
+            try {
+                const candidates = await getJobCandidates(selectedJobId);
+                if (isMounted) {
+                    setJobCandidates(candidates);
+                    setJobs((currentJobs) =>
+                        currentJobs.map((job) =>
+                            job.id === selectedJobId
+                                ? {
+                                      ...job,
+                                      candidate_count: candidates.length,
+                                  }
+                                : job
+                        )
+                    );
+                }
+            } catch (error) {
+                if (isMounted) {
+                    setJobCandidates([]);
+                    setJobCandidatesError(
+                        error.message ||
+                            'Could not load candidates for this job.'
+                    );
+                }
+            } finally {
+                if (isMounted) setLoadingJobCandidates(false);
+            }
+        };
+
+        loadCandidates();
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedJobId]);
 
     const handleCreateJob = async (e) => {
         e.preventDefault();
@@ -106,15 +157,42 @@ export default function JobsTab({
     };
 
     const handleJobCardClick = (jobId) => {
+        setJobCandidates([]);
+        setJobCandidatesError('');
         setSelectedJobId(jobId);
     };
 
     const handleBackToList = () => {
         setSelectedJobId(null);
+        setJobCandidates([]);
+        setJobCandidatesError('');
     };
 
     const handleExportReport = () => {
         onViewReport(null);
+    };
+
+    const refreshSelectedJobCandidates = async () => {
+        if (!selectedJobId) return;
+        try {
+            const candidates = await getJobCandidates(selectedJobId);
+            setJobCandidates(candidates);
+            setJobs((currentJobs) =>
+                currentJobs.map((job) =>
+                    job.id === selectedJobId
+                        ? {
+                              ...job,
+                              candidate_count: candidates.length,
+                          }
+                        : job
+                )
+            );
+            setJobCandidatesError('');
+        } catch (error) {
+            setJobCandidatesError(
+                error.message || 'Could not refresh candidates for this job.'
+            );
+        }
     };
 
 
@@ -218,10 +296,25 @@ export default function JobsTab({
 
                     {/**Stats Row leave this after complete lah*/}
                     <div>
-                        
+
                     </div>
 
                     {/**Work Area */}
+                    {loadingJobCandidates ? (
+                        <div className="py-16 text-center text-sm font-semibold text-slate-400">
+                            Loading candidates...
+                        </div>
+                    ) : jobCandidatesError ? (
+                        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                            {jobCandidatesError}
+                        </div>
+                    ) : jobCandidates.length > 0 ? (
+                        <JobCandidateAnalysis
+                            jobId={selectedJob.id}
+                            candidates={jobCandidates}
+                            onUpload={() => setShowUploadModal(true)}
+                        />
+                    ) : (
                     <div className="space-y-4">
                         <div className="bg-white border-2 border-dashed rounded-3xl p-16 text-center flex flex-col items-center justify-center transition-all cursor-pointer border-slate-200 hover:border-blue-400 hover:bg-slate-50/30">
                             <div className="w-16 h-16 bg-blue-50 border border-blue-100 text-[#1D5BF2] rounded-2xl flex items-center justify-center mb-6 shadow-sm">
@@ -239,7 +332,7 @@ export default function JobsTab({
                             <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-sm">
                                 <button
                                     onClick={(e) => {e.stopPropagation(); setShowUploadModal(true)}}
-                                    className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-[#1D5BF2] hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/10 cursor-pointer"    
+                                    className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-[#1D5BF2] hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/10 cursor-pointer"
                                 >
                                     <span>+ Select Resumes</span>
                                 </button>
@@ -267,6 +360,7 @@ export default function JobsTab({
                             </div>
                         </div>
                     </div>
+                    )}
 
                     <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-100">
                         <button
@@ -316,6 +410,7 @@ export default function JobsTab({
                     {jobs.map((job) => {
                         const salaryText = [job.salary_min, job.salary_max].filter(Boolean).join(' - ');
                         const skills = Array.isArray(job.required_skills) ? job.required_skills : [];
+                        const candidateCount = job.candidate_count ?? 0;
 
                         return (
                             <div
@@ -374,7 +469,7 @@ export default function JobsTab({
                                     <div className="flex items-center gap-1.5">
                                         <Users className="w-4 h-4 text-slate-400" />
                                         <span className="text-xs font-bold text-slate-500">
-                                            0 Candidates
+                                            {candidateCount} Candidate{candidateCount === 1 ? '' : 's'}
                                         </span>
                                     </div>
 
@@ -400,9 +495,11 @@ export default function JobsTab({
                 setJobForm={setJobForm}
             />
 
-            <UploadResumesModal 
-                isOpen={showUploadModal}    
+            <UploadResumesModal
+                isOpen={showUploadModal}
                 onClose={() => setShowUploadModal(false)}
+                jobId={selectedJobId}
+                onUploadComplete={refreshSelectedJobCandidates}
             />
         </div>
     );

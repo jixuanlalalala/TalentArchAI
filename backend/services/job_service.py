@@ -112,10 +112,32 @@ def get_jobs(supabase, recruiter_id):
             .order("created_at", desc=True)
             .execute()
         )
+        jobs = response.data or []
+        if not jobs:
+            return []
+
+        job_ids = [str(job["id"]) for job in jobs]
+        match_response = (
+            supabase.table("match_results")
+            .select("job_id")
+            .in_("job_id", job_ids)
+            .execute()
+        )
     except Exception as exc:
         raise JobServiceError("Failed to fetch job postings") from exc
 
-    return response.data or []
+    candidate_counts = {}
+    for match in match_response.data or []:
+        job_id = str(match.get("job_id"))
+        candidate_counts[job_id] = candidate_counts.get(job_id, 0) + 1
+
+    return [
+        {
+            **job,
+            "candidate_count": candidate_counts.get(str(job["id"]), 0),
+        }
+        for job in jobs
+    ]
     
 
 def get_job_by_id(supabase, job_id, recruiter_id):

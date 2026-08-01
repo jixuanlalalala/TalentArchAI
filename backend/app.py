@@ -1,7 +1,9 @@
 import os
 from flask import Flask, jsonify
 from flask_cors import CORS
+from routes.candidate_routes import candidate_bp, candidate_database_bp
 from routes.job_routes import job_bp
+from routes.resume_routes import resume_bp
 
 app = Flask(__name__)
 CORS(app,
@@ -11,6 +13,9 @@ CORS(app,
                             }},
                             supports_credentials=True)
 app.register_blueprint(job_bp, url_prefix="/api/jobs")
+app.register_blueprint(resume_bp, url_prefix="/api/jobs")
+app.register_blueprint(candidate_bp, url_prefix="/api/jobs")
+app.register_blueprint(candidate_database_bp, url_prefix="/api/candidates")
 
 
 @app.get("/health")
