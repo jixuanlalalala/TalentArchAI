@@ -55,6 +55,8 @@ def _build_job_payload(recruiter_id, data):
 
     if not title:
         raise JobValidationError("Job title is required")
+    if not description:
+        raise JobValidationError("Job description is required")
     if len(title) > 200:
         raise JobValidationError("Job title must be 200 characters or fewer")
     if len(description) > 20_000:

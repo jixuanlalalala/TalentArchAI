@@ -172,6 +172,7 @@ export default function CreateJobModal({
             <textarea
               id="job-form-description"
               rows={4}
+              required
               placeholder="Provide a brief overview of the role and responsibilities..."
               value={jobForm.description}
               onChange={(e) => setJobForm(prev => ({ ...prev, description: e.target.value }))}

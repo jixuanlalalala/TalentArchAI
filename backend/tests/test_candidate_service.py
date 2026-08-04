@@ -6,7 +6,10 @@ from uuid import uuid4
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from models.candidate_extraction import CandidateExtraction  # noqa: E402
-from services.candidate_service import save_candidate  # noqa: E402
+from services.candidate_service import (  # noqa: E402
+    persist_candidate_resume_and_queue_matches,
+    save_candidate,
+)
 from services.match_result_service import get_or_create_pending_match  # noqa: E402
 
 
@@ -78,9 +81,23 @@ class FakeTable:
 class FakeSupabase:
     def __init__(self):
         self.database = {"candidates": [], "match_results": []}
+        self.rpc_calls = []
+        self.rpc_response = None
 
     def table(self, table_name):
         return FakeTable(self.database, table_name)
+
+    def rpc(self, function_name, params):
+        self.rpc_calls.append((function_name, params))
+        return FakeRpcQuery(self.rpc_response)
+
+
+class FakeRpcQuery:
+    def __init__(self, response):
+        self.response = response
+
+    def execute(self):
+        return self.response
 
 
 def extraction(email="candidate@example.com"):
@@ -139,6 +156,7 @@ class CandidateServiceTests(unittest.TestCase):
         self.assertFalse(second.created)
         self.assertEqual(len(self.supabase.database["match_results"]), 1)
         for field in (
+            "match_score",
             "education_score",
             "hard_skill_score",
             "soft_skill_score",
@@ -147,9 +165,12 @@ class CandidateServiceTests(unittest.TestCase):
             "matched_skills",
             "missing_skills",
             "summary",
+            "processing_started_at",
+            "analysis_error",
         ):
             self.assertIsNone(first.match_result[field])
         self.assertEqual(first.match_result["status"], "pending")
+        self.assertEqual(first.match_result["recruitment_status"], "new")
 
     def test_same_candidate_can_be_linked_to_different_jobs(self):
         candidate = save_candidate(
@@ -159,6 +180,38 @@ class CandidateServiceTests(unittest.TestCase):
         get_or_create_pending_match(self.supabase, "job-2", candidate["id"])
 
         self.assertEqual(len(self.supabase.database["match_results"]), 2)
+
+    def test_atomic_resume_persistence_uses_the_approved_rpc_contract(self):
+        self.supabase.rpc_response = FakeResponse(
+            {
+                "candidate_id": "candidate-1",
+                "match_result_id": "match-1",
+                "candidate_created": False,
+                "previous_resume_file_url": "old.pdf",
+            }
+        )
+
+        result = persist_candidate_resume_and_queue_matches(
+            self.supabase,
+            "recruiter-1",
+            "job-1",
+            extraction(None),
+            "new.pdf",
+            "new resume text",
+        )
+
+        self.assertEqual(result.candidate_id, "candidate-1")
+        self.assertEqual(result.match_result_id, "match-1")
+        self.assertFalse(result.candidate_created)
+        self.assertEqual(result.previous_resume_file_url, "old.pdf")
+        function_name, params = self.supabase.rpc_calls[0]
+        self.assertEqual(function_name, "persist_candidate_resume_and_queue_matches")
+        self.assertEqual(params["p_recruiter_id"], "recruiter-1")
+        self.assertEqual(params["p_job_id"], "job-1")
+        self.assertIsNone(params["p_email"])
+        self.assertEqual(params["p_hard_skills"], ["Python"])
+        self.assertEqual(params["p_resume_file_url"], "new.pdf")
+        self.assertEqual(params["p_raw_text"], "new resume text")
 
 
 if __name__ == "__main__":

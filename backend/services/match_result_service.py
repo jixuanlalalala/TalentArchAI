@@ -37,6 +37,8 @@ def get_or_create_pending_match(
             "job_id": job_id,
             "candidate_id": candidate_id,
             "status": "pending",
+            "recruitment_status": "new",
+            "match_score": None,
             "education_score": None,
             "hard_skill_score": None,
             "soft_skill_score": None,
@@ -45,6 +47,8 @@ def get_or_create_pending_match(
             "matched_skills": None,
             "missing_skills": None,
             "summary": None,
+            "processing_started_at": None,
+            "analysis_error": None,
         }
         response = supabase.table("match_results").insert(payload).execute()
         if not response.data:

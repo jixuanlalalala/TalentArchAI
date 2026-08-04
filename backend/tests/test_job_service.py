@@ -5,7 +5,11 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from services.job_service import get_jobs  # noqa: E402
+from services.job_service import (  # noqa: E402
+    JobValidationError,
+    _build_job_payload,
+    get_jobs,
+)
 
 
 class FakeQuery:
@@ -40,6 +44,17 @@ class FakeSupabase:
 
 
 class JobServiceTests(unittest.TestCase):
+    def test_job_description_is_required(self):
+        for description in (None, "", "   "):
+            with self.subTest(description=description):
+                with self.assertRaisesRegex(
+                    JobValidationError, "Job description is required"
+                ):
+                    _build_job_payload(
+                        "recruiter-1",
+                        {"title": "Software Engineer", "description": description},
+                    )
+
     def test_jobs_include_real_candidate_counts(self):
         supabase = FakeSupabase(
             {
