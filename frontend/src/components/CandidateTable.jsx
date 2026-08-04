@@ -7,10 +7,18 @@ const statusClasses = {
     failed: 'bg-rose-50 text-rose-700 border-rose-100',
 };
 
-const matchScoreLabel = (status) =>
-    status === 'pending' || status === 'processing'
+const matchScoreLabel = (candidate, status) => {
+    if (
+        status === 'completed' &&
+        typeof candidate.match_score === 'number' &&
+        Number.isFinite(candidate.match_score)
+    ) {
+        return `${Math.round(candidate.match_score * 100) / 100}%`;
+    }
+    return status === 'pending' || status === 'processing'
         ? 'Pending Analysis'
         : '--';
+};
 
 const formatUploadDate = (value) => {
     if (!value) return '--';
@@ -31,7 +39,13 @@ export default function CandidateTable({
     const isDatabaseView = mode === 'database';
     const headings = isDatabaseView
         ? ['Candidate', 'Phone', 'Location', 'Upload Date', 'Extraction Status']
-        : ['Candidate', 'Phone', 'Location', 'Match Score', 'Status'];
+        : [
+              'Candidate',
+              'Phone',
+              'Location',
+              'Match Score',
+              'Analysis Status',
+          ];
 
     return (
         <div className="overflow-x-auto">
@@ -114,7 +128,10 @@ export default function CandidateTable({
                                             ? formatUploadDate(
                                                   candidate.created_at
                                               )
-                                            : matchScoreLabel(status)}
+                                            : matchScoreLabel(
+                                                  candidate,
+                                                  status
+                                              )}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">

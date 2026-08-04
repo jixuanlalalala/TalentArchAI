@@ -3,13 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Briefcase, Download, PlusCircle, ChevronRight, Trash2, MapPin, Users, ArrowLeft, UploadCloud, Check } from 'lucide-react';
 import CreateJobModal from './CreateJobModal';
 import UploadResumesModal from './UploadResumesModal';
 import JobCandidateAnalysis from './JobCandidateAnalysis';
+import JobAnalysisStatistics from './JobAnalysisStatistics';
 import { getJobCandidates } from '../services/candidateService';
 import { createJob, getJobs, deleteJob } from '../services/jobService';
+import { hasActiveAnalysis } from '../utils/jobCandidateAnalysis';
 
 export default function JobsTab({
     onViewReport,
@@ -24,6 +26,21 @@ export default function JobsTab({
     const [loadingJobCandidates, setLoadingJobCandidates] = useState(false);
     const [jobCandidatesError, setJobCandidatesError] = useState('');
     const selectedJob = jobs.find((job) => job.id === selectedJobId);
+    const shouldPollAnalyses = hasActiveAnalysis(jobCandidates);
+
+    const applyJobCandidates = useCallback((jobId, candidates) => {
+        setJobCandidates(candidates);
+        setJobs((currentJobs) =>
+            currentJobs.map((job) =>
+                job.id === jobId
+                    ? {
+                          ...job,
+                          candidate_count: candidates.length,
+                      }
+                    : job
+            )
+        );
+    }, []);
 
     const [jobForm, setJobForm] = useState({
         title: '',
@@ -77,17 +94,7 @@ export default function JobsTab({
             try {
                 const candidates = await getJobCandidates(selectedJobId);
                 if (isMounted) {
-                    setJobCandidates(candidates);
-                    setJobs((currentJobs) =>
-                        currentJobs.map((job) =>
-                            job.id === selectedJobId
-                                ? {
-                                      ...job,
-                                      candidate_count: candidates.length,
-                                  }
-                                : job
-                        )
-                    );
+                    applyJobCandidates(selectedJobId, candidates);
                 }
             } catch (error) {
                 if (isMounted) {
@@ -106,7 +113,7 @@ export default function JobsTab({
         return () => {
             isMounted = false;
         };
-    }, [selectedJobId]);
+    }, [applyJobCandidates, selectedJobId]);
 
     const handleCreateJob = async (e) => {
         e.preventDefault();
@@ -172,28 +179,65 @@ export default function JobsTab({
         onViewReport(null);
     };
 
-    const refreshSelectedJobCandidates = async () => {
+    const refreshSelectedJobCandidates = useCallback(async () => {
         if (!selectedJobId) return;
         try {
             const candidates = await getJobCandidates(selectedJobId);
-            setJobCandidates(candidates);
-            setJobs((currentJobs) =>
-                currentJobs.map((job) =>
-                    job.id === selectedJobId
-                        ? {
-                              ...job,
-                              candidate_count: candidates.length,
-                          }
-                        : job
-                )
-            );
+            applyJobCandidates(selectedJobId, candidates);
             setJobCandidatesError('');
         } catch (error) {
             setJobCandidatesError(
                 error.message || 'Could not refresh candidates for this job.'
             );
         }
-    };
+    }, [applyJobCandidates, selectedJobId]);
+
+    useEffect(() => {
+        if (!selectedJobId || !shouldPollAnalyses) return undefined;
+
+        let cancelled = false;
+        let requestInFlight = false;
+
+        const poll = async () => {
+            if (cancelled || document.hidden || requestInFlight) return;
+            requestInFlight = true;
+            try {
+                const candidates = await getJobCandidates(selectedJobId);
+                if (!cancelled) {
+                    applyJobCandidates(selectedJobId, candidates);
+                    setJobCandidatesError('');
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    setJobCandidatesError(
+                        error.message ||
+                            'Could not refresh candidates for this job.'
+                    );
+                }
+            } finally {
+                requestInFlight = false;
+            }
+        };
+
+        const intervalId = window.setInterval(poll, 5000);
+        const handleVisibilityChange = () => {
+            if (!document.hidden) poll();
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(intervalId);
+            document.removeEventListener(
+                'visibilitychange',
+                handleVisibilityChange
+            );
+        };
+    }, [
+        applyJobCandidates,
+        selectedJobId,
+        shouldPollAnalyses,
+    ]);
 
 
 
@@ -294,10 +338,11 @@ export default function JobsTab({
                         </div>
                     ) : null}
 
-                    {/**Stats Row leave this after complete lah*/}
-                    <div>
-
-                    </div>
+                    <JobAnalysisStatistics
+                        candidates={jobCandidates}
+                        isLoading={loadingJobCandidates}
+                        error={jobCandidatesError}
+                    />
 
                     {/**Work Area */}
                     {loadingJobCandidates ? (

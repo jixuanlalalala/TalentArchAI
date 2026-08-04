@@ -7,12 +7,13 @@ CANDIDATE_DETAIL_FIELDS = (
     "work_experience"
 )
 MATCH_LIST_FIELDS = (
-    "id,candidate_id,status,"
+    "id,candidate_id,status,match_score,created_at,"
     "education_score,hard_skill_score,soft_skill_score,"
     "work_experience_score"
 )
 MATCH_DETAIL_FIELDS = (
-    f"{MATCH_LIST_FIELDS},gap_analysis,matched_skills,missing_skills,summary"
+    f"{MATCH_LIST_FIELDS},gap_analysis,matched_skills,missing_skills,summary,"
+    "processing_started_at,analysis_error"
 )
 
 
@@ -160,6 +161,8 @@ def get_job_candidates(supabase, recruiter_id: str, job_id: str) -> list[dict]:
                 **candidate,
                 "match_result_id": match.get("id"),
                 "status": match.get("status"),
+                "match_score": match.get("match_score"),
+                "match_result_created_at": match.get("created_at"),
                 "education_score": match.get("education_score"),
                 "hard_skill_score": match.get("hard_skill_score"),
                 "soft_skill_score": match.get("soft_skill_score"),
@@ -208,6 +211,8 @@ def get_job_candidate_detail(
         **candidate,
         "match_result_id": match.get("id"),
         "status": match.get("status"),
+        "match_score": match.get("match_score"),
+        "match_result_created_at": match.get("created_at"),
         "education_score": match.get("education_score"),
         "hard_skill_score": match.get("hard_skill_score"),
         "soft_skill_score": match.get("soft_skill_score"),
@@ -216,4 +221,6 @@ def get_job_candidate_detail(
         "matched_skills": match.get("matched_skills"),
         "missing_skills": match.get("missing_skills"),
         "summary": match.get("summary"),
+        "processing_started_at": match.get("processing_started_at"),
+        "analysis_error": match.get("analysis_error"),
     }

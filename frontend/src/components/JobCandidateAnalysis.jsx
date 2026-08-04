@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { UploadCloud } from 'lucide-react';
 import CandidateDetailsPanel from './CandidateDetailsPanel';
 import CandidateTable from './CandidateTable';
 import { getJobCandidate } from '../services/candidateService';
+import { rankJobCandidates } from '../utils/jobCandidateAnalysis';
 
 export default function JobCandidateAnalysis({
     jobId,
@@ -13,6 +14,10 @@ export default function JobCandidateAnalysis({
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [detailError, setDetailError] = useState('');
     const detailRequestId = useRef(0);
+    const rankedCandidates = useMemo(
+        () => rankJobCandidates(candidates),
+        [candidates]
+    );
 
     const handleCandidateSelect = async (candidate) => {
         const requestId = detailRequestId.current + 1;
@@ -71,7 +76,7 @@ export default function JobCandidateAnalysis({
                 </div>
 
                 <CandidateTable
-                    candidates={candidates}
+                    candidates={rankedCandidates}
                     onCandidateSelect={handleCandidateSelect}
                 />
             </div>

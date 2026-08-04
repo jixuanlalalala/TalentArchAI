@@ -51,9 +51,17 @@ const statusClasses = {
 
 const displayValue = (value) => value || '--';
 
-const scoreDisplay = (score) => {
+const scoreDisplay = (score, status) => {
     if (typeof score !== 'number' || !Number.isFinite(score)) {
-        return { label: 'Pending Analysis', width: 0 };
+        return {
+            label:
+                status === 'pending' || status === 'processing'
+                    ? 'Pending Analysis'
+                    : status === 'failed'
+                      ? 'Failed'
+                      : '--',
+            width: 0,
+        };
     }
     const boundedScore = Math.min(100, Math.max(0, score));
     return { label: `${score}%`, width: boundedScore };
@@ -78,9 +86,11 @@ export default function CandidateDetailsPanel({
 
     if (!candidate) return null;
 
-    const status = candidate.status || candidate.extraction_status || 'pending';
+    const status = String(
+        candidate.status || candidate.extraction_status || 'pending'
+    ).toLowerCase();
     const statusClass =
-        statusClasses[status.toLowerCase()] ||
+        statusClasses[status] ||
         'bg-slate-50 text-slate-600 border-slate-200';
     const hasExtractedProfile = [
         'education',
@@ -321,6 +331,12 @@ export default function CandidateDetailsPanel({
                         </section>
                     ) : null}
 
+                    {status === 'failed' && candidate.analysis_error ? (
+                        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                            {candidate.analysis_error}
+                        </div>
+                    ) : null}
+
                     <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 flex items-center justify-center">
@@ -338,7 +354,10 @@ export default function CandidateDetailsPanel({
 
                         <div className="mt-5 space-y-4">
                             {analysisItems.map(({ label, field, icon: Icon }) => {
-                                const score = scoreDisplay(candidate[field]);
+                                const score = scoreDisplay(
+                                    candidate[field],
+                                    status
+                                );
                                 return (
                                     <div key={field}>
                                         <div className="flex items-center justify-between gap-3 mb-2">
