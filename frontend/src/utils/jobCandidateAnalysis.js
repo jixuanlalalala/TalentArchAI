@@ -5,8 +5,14 @@ const ANALYSIS_STATUS_ORDER = {
     failed: 3,
 };
 
-const analysisStatus = (candidate) =>
+export const getCandidateAnalysisStatus = (candidate) =>
     String(candidate?.status || 'pending').toLowerCase();
+
+export const getCandidateAnalysisKey = (candidate) =>
+    String(candidate?.match_result_id || candidate?.id || '');
+
+const isActiveStatus = (status) =>
+    status === 'pending' || status === 'processing';
 
 const validMatchScore = (candidate) =>
     typeof candidate?.match_score === 'number' &&
@@ -19,8 +25,8 @@ const createdAtValue = (candidate) => {
 
 export const rankJobCandidates = (candidates = []) =>
     [...candidates].sort((left, right) => {
-        const leftStatus = analysisStatus(left);
-        const rightStatus = analysisStatus(right);
+        const leftStatus = getCandidateAnalysisStatus(left);
+        const rightStatus = getCandidateAnalysisStatus(right);
         const statusDifference =
             (ANALYSIS_STATUS_ORDER[leftStatus] ?? 4) -
             (ANALYSIS_STATUS_ORDER[rightStatus] ?? 4);
@@ -52,13 +58,13 @@ export const calculateJobCandidateStatistics = (candidates = []) => {
     };
 
     candidates.forEach((candidate) => {
-        const status = analysisStatus(candidate);
+        const status = getCandidateAnalysisStatus(candidate);
         if (Object.hasOwn(statusCounts, status)) statusCounts[status] += 1;
     });
 
     const rankedCompleted = rankJobCandidates(candidates).filter(
         (candidate) =>
-            analysisStatus(candidate) === 'completed' &&
+            getCandidateAnalysisStatus(candidate) === 'completed' &&
             validMatchScore(candidate)
     );
     const averageMatchScore = rankedCompleted.length
@@ -85,6 +91,53 @@ export const calculateJobCandidateStatistics = (candidates = []) => {
 
 export const hasActiveAnalysis = (candidates = []) =>
     candidates.some((candidate) => {
-        const status = analysisStatus(candidate);
-        return status === 'pending' || status === 'processing';
+        const status = getCandidateAnalysisStatus(candidate);
+        return isActiveStatus(status);
     });
+
+export const detectCandidateAnalysisTransitions = (
+    previousStatuses = new Map(),
+    candidates = []
+) => {
+    const currentStatuses = new Map();
+    const newlyCompletedIds = [];
+    const newlyCompletedCandidates = [];
+    const newlyFailedCandidates = [];
+    let newlySettledCount = 0;
+
+    candidates.forEach((candidate) => {
+        const candidateKey = getCandidateAnalysisKey(candidate);
+        if (!candidateKey) return;
+
+        const currentStatus = getCandidateAnalysisStatus(candidate);
+        const previousStatus = previousStatuses.get(candidateKey);
+        currentStatuses.set(candidateKey, currentStatus);
+
+        if (
+            isActiveStatus(previousStatus) &&
+            (currentStatus === 'completed' || currentStatus === 'failed')
+        ) {
+            newlySettledCount += 1;
+            if (currentStatus === 'completed') {
+                newlyCompletedIds.push(candidateKey);
+                newlyCompletedCandidates.push({
+                    id: candidateKey,
+                    name: candidate?.name || '',
+                });
+            } else {
+                newlyFailedCandidates.push({
+                    id: candidateKey,
+                    name: candidate?.name || '',
+                });
+            }
+        }
+    });
+
+    return {
+        currentStatuses,
+        newlyCompletedIds,
+        newlyCompletedCandidates,
+        newlyFailedCandidates,
+        newlySettledCount,
+    };
+};

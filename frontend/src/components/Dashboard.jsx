@@ -41,9 +41,9 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans flex flex-col md:flex-row antialiased relative">
+        <div className="h-screen overflow-hidden bg-[#F8FAFC] text-slate-800 font-sans flex flex-col md:flex-row antialiased relative">
             {/* Sidebar navigation */}
-            <aside className="w-full md:w-64 bg-[#F1F5F9] border-r border-slate-200 flex flex-col justify-between shrink-0 p-6">
+            <aside className="w-full md:w-64 md:fixed md:inset-y-0 md:left-0 md:h-screen bg-[#F1F5F9] border-r border-slate-200 flex flex-col justify-between shrink-0 p-6">
                 <div>
                     <div className='mb-8 mt-2'>
                         <h1 className='font-extrabold text-[#1D5BF2] text-2xl tracking-tight leading-none"'>
@@ -119,23 +119,23 @@ export default function Dashboard() {
             </aside>
 
             {/* MAIN CONTAINER */}
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0 md:ml-64">
                 {/** Header Bar */}
-                <header className="bg-white border-b border-slate-100 px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
-                    
-                    <button
+                <header className="bg-white border-b border-slate-100 px-8 py-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
+                    <div></div>
+                    {/* <button
                         onClick={handleTestConnection}
                         className="px-4 py-2 rounded-full bg-[#1D5BF2] text-white font-semibold hover:bg-[#174dc0] transition"
                     >
                         Test Flask auth
-                    </button>
+                    </button> */}
 
                     {/**User profile badge on the top-right corner  */}
                     <div className="flex items-center gap-3 self-end sm:self-auto">
                         <button
                             id='top-profile-badge'
                             onClick={()=>setActiveTab('profile')}
-                            className="w-10 h-10 rounded-full bg-blue-100 text-[#1D5BF2] hover:bg-blue-200 transition-colors flex items-center justify-center border border-blue-200/40 cursor-pointer"
+                            className="w-8 h-8 rounded-full bg-blue-100 text-[#1D5BF2] hover:bg-blue-200 transition-colors flex items-center justify-center border border-blue-200/40 cursor-pointer"
                         >
                             <User className='w-5 h-5'></User>
                         </button>
@@ -143,7 +143,7 @@ export default function Dashboard() {
                 </header>
 
                 {/** Main Content Canvas */}
-                <main className="flex-1 p-8 overflow-y-auto">
+                <main className="flex-1 min-h-0 p-8 overflow-y-auto">
                     {(testMessage || testError) && (
                         <div className="m-6 rounded-xl border p-4 text-sm">
                             {testMessage && <p className="text-emerald-700">{testMessage}</p>}

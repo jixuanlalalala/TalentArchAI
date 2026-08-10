@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import {
-    Archive,
     BriefcaseBusiness,
     Code2,
     FileText,
@@ -9,7 +8,8 @@ import {
     Mail,
     MapPin,
     Phone,
-    Star,
+    RefreshCw,
+    Trash2,
     UserRound,
     X,
 } from 'lucide-react';
@@ -51,11 +51,13 @@ const statusClasses = {
 
 const displayValue = (value) => value || '--';
 
-const scoreDisplay = (score, status) => {
+const scoreDisplay = (score, status, field) => {
     if (typeof score !== 'number' || !Number.isFinite(score)) {
         return {
             label:
-                status === 'pending' || status === 'processing'
+                field === 'match_score'
+                    ? '--'
+                    : status === 'pending' || status === 'processing'
                     ? 'Pending Analysis'
                     : status === 'failed'
                       ? 'Failed'
@@ -72,6 +74,10 @@ export default function CandidateDetailsPanel({
     isLoading,
     error,
     onClose,
+    onRecruitmentStatusChange,
+    onRetryAnalysis,
+    onUnlink,
+    isActionPending = false,
 }) {
     useEffect(() => {
         const handleKeyDown = (event) => {
@@ -92,6 +98,8 @@ export default function CandidateDetailsPanel({
     const statusClass =
         statusClasses[status] ||
         'bg-slate-50 text-slate-600 border-slate-200';
+    const recruitmentStatus =
+        candidate.recruitment_status || 'new';
     const hasExtractedProfile = [
         'education',
         'hard_skills',
@@ -99,6 +107,9 @@ export default function CandidateDetailsPanel({
         'work_experience',
     ].some((field) => Array.isArray(candidate[field]));
     const hasAppliedJobs = Array.isArray(candidate.applied_jobs);
+    const hasJobActions = Boolean(
+        onRecruitmentStatusChange || onRetryAnalysis || onUnlink
+    );
 
     return (
         <div
@@ -356,7 +367,8 @@ export default function CandidateDetailsPanel({
                             {analysisItems.map(({ label, field, icon: Icon }) => {
                                 const score = scoreDisplay(
                                     candidate[field],
-                                    status
+                                    status,
+                                    field
                                 );
                                 return (
                                     <div key={field}>
@@ -405,24 +417,62 @@ export default function CandidateDetailsPanel({
                         </p>
                     </section>
 
-                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                        <button
-                            type="button"
-                            disabled
-                            className="flex items-center gap-2 border border-slate-200 bg-white text-slate-400 text-sm font-bold px-4 py-2.5 rounded-xl cursor-not-allowed"
-                        >
-                            <Archive className="w-4 h-4" />
-                            <span>Archive</span>
-                        </button>
-                        <button
-                            type="button"
-                            disabled
-                            className="flex items-center gap-2 bg-slate-200 text-slate-400 text-sm font-bold px-4 py-2.5 rounded-xl cursor-not-allowed"
-                        >
-                            <Star className="w-4 h-4" />
-                            <span>Shortlist</span>
-                        </button>
+                    {hasJobActions ? (
+                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <label
+                                htmlFor="candidate-recruitment-status"
+                                className="text-xs font-bold text-slate-600"
+                            >
+                                Recruitment Status
+                            </label>
+                            <select
+                                id="candidate-recruitment-status"
+                                value={recruitmentStatus}
+                                disabled={isActionPending}
+                                onChange={(event) =>
+                                    onRecruitmentStatusChange?.(
+                                        event.target.value
+                                    )
+                                }
+                                className="border border-slate-200 bg-white text-xs font-semibold text-slate-600 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+                            >
+                                <option value="new">New</option>
+                                <option value="under_review">
+                                    Under Review
+                                </option>
+                                <option value="shortlisted">
+                                    Shortlisted
+                                </option>
+                                <option value="rejected">Rejected</option>
+                                <option value="archived">Archived</option>
+                            </select>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-end gap-3">
+                            {status === 'failed' ? (
+                                <button
+                                    type="button"
+                                    disabled={isActionPending}
+                                    onClick={onRetryAnalysis}
+                                    className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    <RefreshCw className="w-4 h-4" />
+                                    <span>Retry Analysis</span>
+                                </button>
+                            ) : null}
+                            <button
+                                type="button"
+                                disabled={isActionPending}
+                                onClick={onUnlink}
+                                className="flex items-center gap-2 border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 text-sm font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                <span>Remove from Job</span>
+                            </button>
+                        </div>
                     </div>
+                    ) : null}
 
                     {isLoading ? (
                         <p className="text-center text-xs font-semibold text-slate-400">

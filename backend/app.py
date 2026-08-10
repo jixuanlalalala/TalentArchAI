@@ -9,7 +9,7 @@ app = Flask(__name__)
 CORS(app,
      resources={r"/api/*": {"origins": os.getenv("FRONTEND_ORIGIN", "http://localhost:5173"),
                             "allow_headers": ["Content-Type", "Authorization"],
-                            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                            "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
                             }},
                             supports_credentials=True)
 app.register_blueprint(job_bp, url_prefix="/api/jobs")

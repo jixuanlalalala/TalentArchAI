@@ -26,3 +26,32 @@ export const getJobCandidate = async (jobId, candidateId) => {
   );
   return payload?.candidate || null;
 };
+
+export const updateRecruitmentStatus = async (
+  jobId,
+  candidateId,
+  recruitmentStatus
+) => {
+  const payload = await requestJson(
+    `/jobs/${jobId}/candidates/${candidateId}/recruitment-status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ recruitment_status: recruitmentStatus }),
+    }
+  );
+  return payload?.match_result || null;
+};
+
+export const retryCandidateAnalysis = async (jobId, candidateId) => {
+  const payload = await requestJson(
+    `/jobs/${jobId}/candidates/${candidateId}/retry-analysis`,
+    { method: 'POST' }
+  );
+  return payload?.match_result || null;
+};
+
+export const unlinkCandidateFromJob = async (jobId, candidateId) => {
+  return requestJson(`/jobs/${jobId}/candidates/${candidateId}`, {
+    method: 'DELETE',
+  });
+};

@@ -38,3 +38,18 @@ export const deleteJob = async (jobId) => {
         method: 'DELETE',
     });
 };
+
+export const getRediscoveryCandidates = async (jobId) => {
+    const payload = await requestJson(
+        `/jobs/${jobId}/rediscovery-candidates`,
+        { method: 'GET' }
+    );
+    return Array.isArray(payload?.candidates) ? payload.candidates : [];
+};
+
+export const linkRediscoveryCandidates = async (jobId, candidateIds) => {
+    return requestJson(`/jobs/${jobId}/candidates`, {
+        method: 'POST',
+        body: JSON.stringify({ candidate_ids: candidateIds }),
+    });
+};

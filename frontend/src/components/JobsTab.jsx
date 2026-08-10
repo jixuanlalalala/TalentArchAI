@@ -3,15 +3,91 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { Briefcase, Download, PlusCircle, ChevronRight, Trash2, MapPin, Users, ArrowLeft, UploadCloud, Check } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    ArrowLeft,
+    Briefcase,
+    Check,
+    CheckCircle2,
+    ChevronRight,
+    Download,
+    LoaderCircle,
+    MapPin,
+    PlusCircle,
+    Trash2,
+    UploadCloud,
+    Users,
+} from 'lucide-react';
 import CreateJobModal from './CreateJobModal';
+import MatchingCandidatesModal from './MatchingCandidatesModal';
 import UploadResumesModal from './UploadResumesModal';
 import JobCandidateAnalysis from './JobCandidateAnalysis';
 import JobAnalysisStatistics from './JobAnalysisStatistics';
+import ToastContainer from './ToastContainer';
 import { getJobCandidates } from '../services/candidateService';
-import { createJob, getJobs, deleteJob } from '../services/jobService';
-import { hasActiveAnalysis } from '../utils/jobCandidateAnalysis';
+import {
+    createJob,
+    deleteJob,
+    getJobs,
+    getRediscoveryCandidates,
+    linkRediscoveryCandidates,
+} from '../services/jobService';
+import {
+    calculateJobCandidateStatistics,
+    detectCandidateAnalysisTransitions,
+} from '../utils/jobCandidateAnalysis';
+
+const NEWLY_COMPLETED_HIGHLIGHT_MS = 4000;
+
+const buildAnalysisToast = (transitions) => {
+    const completed = transitions.newlyCompletedCandidates;
+    const failed = transitions.newlyFailedCandidates;
+    const settledCount = completed.length + failed.length;
+
+    if (settledCount === 0) return null;
+
+    if (settledCount === 1 && completed.length === 1) {
+        const candidateName = completed[0].name || 'A candidate';
+        return {
+            type: 'success',
+            title: 'Analysis Completed',
+            message: `${candidateName}'s resume analysis is ready.`,
+        };
+    }
+
+    if (settledCount === 1 && failed.length === 1) {
+        const candidateName = failed[0].name || 'A candidate';
+        return {
+            type: 'error',
+            title: 'Analysis Failed',
+            message: `${candidateName}'s resume analysis could not be completed.`,
+        };
+    }
+
+    if (failed.length === 0) {
+        return {
+            type: 'success',
+            title: 'Analysis Completed',
+            message: `${completed.length} candidate analyses are now ready.`,
+        };
+    }
+
+    if (completed.length === 0) {
+        return {
+            type: 'error',
+            title: 'Analysis Failed',
+            message: `${failed.length} candidate analyses could not be completed.`,
+        };
+    }
+
+    return {
+        type: 'mixed',
+        title: 'Analysis Update',
+        message: `${completed.length} ${
+            completed.length === 1 ? 'analysis' : 'analyses'
+        } completed and ${failed.length} failed.`,
+    };
+};
 
 export default function JobsTab({
     onViewReport,
@@ -20,15 +96,122 @@ export default function JobsTab({
     const [loadingJobs, setLoadingJobs] = useState(true);
     const [jobsError, setJobsError] = useState('');
     const [showCreateJobModal, setShowCreateJobModal] = useState(false);
+    const [showMatchingCandidatesModal, setShowMatchingCandidatesModal] =
+        useState(false);
+    const [rediscoveryJob, setRediscoveryJob] = useState(null);
+    const [matchingCandidates, setMatchingCandidates] = useState([]);
+    const [addingRediscoveryCandidates, setAddingRediscoveryCandidates] =
+        useState(false);
+    const [rediscoveryError, setRediscoveryError] = useState('');
     const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploadSuccessMessage, setUploadSuccessMessage] = useState('');
     const [selectedJobId, setSelectedJobId] = useState(null);
     const [jobCandidates, setJobCandidates] = useState([]);
     const [loadingJobCandidates, setLoadingJobCandidates] = useState(false);
     const [jobCandidatesError, setJobCandidatesError] = useState('');
+    const [analysisCompletionSummary, setAnalysisCompletionSummary] =
+        useState(null);
+    const [toastNotifications, setToastNotifications] = useState([]);
+    const [highlightedCandidateIds, setHighlightedCandidateIds] = useState(
+        new Set()
+    );
+    const previousCandidateStatusesRef = useRef(new Map());
+    const previousHadActiveAnalysisRef = useRef(false);
+    const analysisJobIdRef = useRef(null);
+    const toastSequenceRef = useRef(0);
+    const highlightTimeoutsRef = useRef(new Map());
+    const candidateResultsRef = useRef(null);
     const selectedJob = jobs.find((job) => job.id === selectedJobId);
-    const shouldPollAnalyses = hasActiveAnalysis(jobCandidates);
+    const analysisStatistics = useMemo(
+        () => calculateJobCandidateStatistics(jobCandidates),
+        [jobCandidates]
+    );
+    const pendingCount = analysisStatistics.pendingCount;
+    const processingCount = analysisStatistics.processingCount;
+    const activeAnalysisCount = pendingCount + processingCount;
+    const hasActiveAnalysis = activeAnalysisCount > 0;
+    const shouldPollAnalyses = hasActiveAnalysis;
+
+    const dismissToast = useCallback((notificationId) => {
+        setToastNotifications((currentNotifications) =>
+            currentNotifications.filter(
+                (notification) => notification.id !== notificationId
+            )
+        );
+    }, []);
+
+    const enqueueAnalysisToast = useCallback((jobId, transitions) => {
+        const toast = buildAnalysisToast(transitions);
+        if (!toast) return;
+
+        toastSequenceRef.current += 1;
+        setToastNotifications((currentNotifications) => [
+            ...currentNotifications,
+            {
+                ...toast,
+                id: `${jobId}-${toastSequenceRef.current}`,
+            },
+        ]);
+    }, []);
 
     const applyJobCandidates = useCallback((jobId, candidates) => {
+        if (analysisJobIdRef.current !== jobId) {
+            analysisJobIdRef.current = jobId;
+            previousCandidateStatusesRef.current = new Map();
+            previousHadActiveAnalysisRef.current = false;
+            setToastNotifications([]);
+        }
+
+        const nextStatistics = calculateJobCandidateStatistics(candidates);
+        const nextHasActiveAnalysis =
+            nextStatistics.pendingCount + nextStatistics.processingCount > 0;
+        const transitions = detectCandidateAnalysisTransitions(
+            previousCandidateStatusesRef.current,
+            candidates
+        );
+        enqueueAnalysisToast(jobId, transitions);
+
+        if (nextHasActiveAnalysis) {
+            setAnalysisCompletionSummary(null);
+        } else if (
+            previousHadActiveAnalysisRef.current &&
+            transitions.newlySettledCount > 0
+        ) {
+            setAnalysisCompletionSummary({
+                completedCount: nextStatistics.completedCount,
+                failedCount: nextStatistics.failedCount,
+            });
+            setUploadSuccessMessage('');
+        }
+
+        if (transitions.newlyCompletedIds.length > 0) {
+            setHighlightedCandidateIds((currentIds) => {
+                const nextIds = new Set(currentIds);
+                transitions.newlyCompletedIds.forEach((candidateId) =>
+                    nextIds.add(candidateId)
+                );
+                return nextIds;
+            });
+
+            transitions.newlyCompletedIds.forEach((candidateId) => {
+                const existingTimeout =
+                    highlightTimeoutsRef.current.get(candidateId);
+                if (existingTimeout) window.clearTimeout(existingTimeout);
+
+                const timeoutId = window.setTimeout(() => {
+                    setHighlightedCandidateIds((currentIds) => {
+                        const nextIds = new Set(currentIds);
+                        nextIds.delete(candidateId);
+                        return nextIds;
+                    });
+                    highlightTimeoutsRef.current.delete(candidateId);
+                }, NEWLY_COMPLETED_HIGHLIGHT_MS);
+                highlightTimeoutsRef.current.set(candidateId, timeoutId);
+            });
+        }
+
+        previousCandidateStatusesRef.current = transitions.currentStatuses;
+        previousHadActiveAnalysisRef.current = nextHasActiveAnalysis;
         setJobCandidates(candidates);
         setJobs((currentJobs) =>
             currentJobs.map((job) =>
@@ -40,6 +223,19 @@ export default function JobsTab({
                     : job
             )
         );
+    }, [enqueueAnalysisToast]);
+
+    const resetAnalysisFeedback = useCallback((jobId = null) => {
+        analysisJobIdRef.current = jobId;
+        previousCandidateStatusesRef.current = new Map();
+        previousHadActiveAnalysisRef.current = false;
+        setAnalysisCompletionSummary(null);
+        setToastNotifications([]);
+        setHighlightedCandidateIds(new Set());
+        highlightTimeoutsRef.current.forEach((timeoutId) =>
+            window.clearTimeout(timeoutId)
+        );
+        highlightTimeoutsRef.current.clear();
     }, []);
 
     const [jobForm, setJobForm] = useState({
@@ -51,6 +247,16 @@ export default function JobsTab({
         skills: '',
         description: ''
     });
+
+    useEffect(
+        () => () => {
+            highlightTimeoutsRef.current.forEach((timeoutId) =>
+                window.clearTimeout(timeoutId)
+            );
+            highlightTimeoutsRef.current.clear();
+        },
+        []
+    );
 
     useEffect(() => {
         let isMounted = true;
@@ -129,7 +335,7 @@ export default function JobsTab({
         };
 
         try {
-            await createJob(newJobData);
+            const createdJob = await createJob(newJobData);
             setShowCreateJobModal(false);
             setJobForm({
                 title: '',
@@ -142,9 +348,57 @@ export default function JobsTab({
             });
             const refreshedJobs = await getJobs();
             setJobs(refreshedJobs || []);
+            resetAnalysisFeedback();
             setSelectedJobId(null);
+
+            try {
+                const suggestions = await getRediscoveryCandidates(createdJob.id);
+                if (suggestions.length > 0) {
+                    setRediscoveryJob(createdJob);
+                    setMatchingCandidates(suggestions);
+                    setRediscoveryError('');
+                    setShowMatchingCandidatesModal(true);
+                }
+            } catch (rediscoveryRequestError) {
+                console.error(
+                    'Candidate rediscovery failed',
+                    rediscoveryRequestError
+                );
+            }
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    const handleCloseMatchingCandidates = () => {
+        if (addingRediscoveryCandidates) return;
+        setShowMatchingCandidatesModal(false);
+        setRediscoveryJob(null);
+        setMatchingCandidates([]);
+        setRediscoveryError('');
+    };
+
+    const handleAddMatchingCandidates = async (candidates) => {
+        if (addingRediscoveryCandidates || !rediscoveryJob?.id) return;
+
+        const candidateIds = candidates.map((candidate) => candidate.id);
+        if (candidateIds.length === 0) return;
+
+        setAddingRediscoveryCandidates(true);
+        setRediscoveryError('');
+        try {
+            await linkRediscoveryCandidates(rediscoveryJob.id, candidateIds);
+            const refreshedJobs = await getJobs();
+            setJobs(refreshedJobs || []);
+            setShowMatchingCandidatesModal(false);
+            setRediscoveryJob(null);
+            setMatchingCandidates([]);
+        } catch (error) {
+            setRediscoveryError(
+                error.message || 'Candidates could not be added to this job.'
+            );
+        } finally {
+            setAddingRediscoveryCandidates(false);
         }
     };
 
@@ -155,6 +409,7 @@ export default function JobsTab({
                 const refreshedJobs = await getJobs();
                 setJobs(refreshedJobs || []);
                 if (selectedJobId === id) {
+                    resetAnalysisFeedback();
                     setSelectedJobId(null);
                 }
             } catch (err) {
@@ -164,15 +419,19 @@ export default function JobsTab({
     };
 
     const handleJobCardClick = (jobId) => {
+        resetAnalysisFeedback(jobId);
         setJobCandidates([]);
         setJobCandidatesError('');
+        setUploadSuccessMessage('');
         setSelectedJobId(jobId);
     };
 
     const handleBackToList = () => {
+        resetAnalysisFeedback();
         setSelectedJobId(null);
         setJobCandidates([]);
         setJobCandidatesError('');
+        setUploadSuccessMessage('');
     };
 
     const handleExportReport = () => {
@@ -191,6 +450,27 @@ export default function JobsTab({
             );
         }
     }, [applyJobCandidates, selectedJobId]);
+
+    const openUploadModal = () => {
+        setUploadSuccessMessage('');
+        setShowUploadModal(true);
+    };
+
+    const handleUploadComplete = async () => {
+        setShowUploadModal(false);
+        setUploadSuccessMessage(
+            'Resumes uploaded successfully. AI analysis will continue in the background.'
+        );
+        await refreshSelectedJobCandidates();
+    };
+
+    const handleViewAnalysisResults = () => {
+        candidateResultsRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+        });
+        candidateResultsRef.current?.focus({ preventScroll: true });
+    };
 
     useEffect(() => {
         if (!selectedJobId || !shouldPollAnalyses) return undefined;
@@ -302,6 +582,15 @@ export default function JobsTab({
                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{jobsError}</div>
             ) : null}
 
+            {uploadSuccessMessage ? (
+                <div
+                    role="status"
+                    className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+                >
+                    {uploadSuccessMessage}
+                </div>
+            ) : null}
+
             {selectedJob ? (
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
                     <div className="flex flex-wrap items-center gap-3">
@@ -344,6 +633,85 @@ export default function JobsTab({
                         error={jobCandidatesError}
                     />
 
+                    {hasActiveAnalysis ? (
+                        <div
+                            role="status"
+                            aria-live="polite"
+                            className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                        >
+                            <div className="flex items-start gap-3">
+                                <LoaderCircle className="w-5 h-5 text-[#1D5BF2] shrink-0 mt-0.5 animate-spin" />
+                                <div>
+                                    <p className="text-sm font-extrabold text-slate-900">
+                                        Analysing {activeAnalysisCount} resume
+                                        {activeAnalysisCount === 1 ? '' : 's'}...
+                                    </p>
+                                    <p className="text-xs font-medium text-slate-500 mt-1">
+                                        You may continue using the system. Results
+                                        will update automatically. {processingCount}{' '}
+                                        processing, {pendingCount} pending.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : analysisCompletionSummary ? (
+                        <div
+                            role="status"
+                            aria-live="polite"
+                            className={`rounded-2xl border px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
+                                analysisCompletionSummary.failedCount > 0
+                                    ? 'border-amber-200 bg-amber-50'
+                                    : 'border-emerald-200 bg-emerald-50'
+                            }`}
+                        >
+                            <div className="flex items-start gap-3">
+                                <CheckCircle2
+                                    className={`w-5 h-5 shrink-0 mt-0.5 ${
+                                        analysisCompletionSummary.failedCount > 0
+                                            ? 'text-amber-600'
+                                            : 'text-emerald-600'
+                                    }`}
+                                />
+                                <div>
+                                    <p className="text-sm font-extrabold text-slate-900">
+                                        Resume analysis completed
+                                    </p>
+                                    <p className="text-xs font-medium text-slate-600 mt-1">
+                                        {analysisCompletionSummary.completedCount}{' '}
+                                        candidate
+                                        {analysisCompletionSummary.completedCount === 1
+                                            ? ' was'
+                                            : 's were'}{' '}
+                                        analysed successfully.{' '}
+                                        {analysisCompletionSummary.failedCount}{' '}
+                                        {analysisCompletionSummary.failedCount === 1
+                                            ? 'analysis'
+                                            : 'analyses'}{' '}
+                                        failed.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={handleViewAnalysisResults}
+                                    className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+                                >
+                                    View Results
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setAnalysisCompletionSummary(null)
+                                    }
+                                    className="text-slate-500 hover:text-slate-700 text-xs font-bold px-2 py-2.5 transition-colors cursor-pointer"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
+
                     {/**Work Area */}
                     {loadingJobCandidates ? (
                         <div className="py-16 text-center text-sm font-semibold text-slate-400">
@@ -354,11 +722,19 @@ export default function JobsTab({
                             {jobCandidatesError}
                         </div>
                     ) : jobCandidates.length > 0 ? (
-                        <JobCandidateAnalysis
-                            jobId={selectedJob.id}
-                            candidates={jobCandidates}
-                            onUpload={() => setShowUploadModal(true)}
-                        />
+                        <div
+                            ref={candidateResultsRef}
+                            tabIndex={-1}
+                            className="scroll-mt-6 focus:outline-none"
+                        >
+                            <JobCandidateAnalysis
+                                jobId={selectedJob.id}
+                                candidates={jobCandidates}
+                                onUpload={openUploadModal}
+                                onCandidatesChanged={refreshSelectedJobCandidates}
+                                highlightedCandidateIds={highlightedCandidateIds}
+                            />
+                        </div>
                     ) : (
                     <div className="space-y-4">
                         <div className="bg-white border-2 border-dashed rounded-3xl p-16 text-center flex flex-col items-center justify-center transition-all cursor-pointer border-slate-200 hover:border-blue-400 hover:bg-slate-50/30">
@@ -376,14 +752,14 @@ export default function JobsTab({
 
                             <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-sm">
                                 <button
-                                    onClick={(e) => {e.stopPropagation(); setShowUploadModal(true)}}
+                                    onClick={(e) => {e.stopPropagation(); openUploadModal()}}
                                     className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-[#1D5BF2] hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/10 cursor-pointer"
                                 >
                                     <span>+ Select Resumes</span>
                                 </button>
 
                                 <button
-                                    onClick={(e) => {e.stopPropagation(); setShowUploadModal(true)}}
+                                    onClick={(e) => {e.stopPropagation(); openUploadModal()}}
                                     className="w-full sm:w-auto flex-1 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-6 rounded-xl transition-all cursor-pointer"
                                 >
                                     <span>Drag & Drop Files</span>
@@ -540,11 +916,25 @@ export default function JobsTab({
                 setJobForm={setJobForm}
             />
 
+            <MatchingCandidatesModal
+                isOpen={showMatchingCandidatesModal}
+                onClose={handleCloseMatchingCandidates}
+                onAddCandidates={handleAddMatchingCandidates}
+                matchingCandidates={matchingCandidates}
+                isAdding={addingRediscoveryCandidates}
+                error={rediscoveryError}
+            />
+
             <UploadResumesModal
                 isOpen={showUploadModal}
                 onClose={() => setShowUploadModal(false)}
                 jobId={selectedJobId}
-                onUploadComplete={refreshSelectedJobCandidates}
+                onUploadComplete={handleUploadComplete}
+            />
+
+            <ToastContainer
+                notifications={toastNotifications}
+                onDismiss={dismissToast}
             />
         </div>
     );

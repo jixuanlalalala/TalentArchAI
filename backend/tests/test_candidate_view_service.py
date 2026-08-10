@@ -131,6 +131,7 @@ class CandidateViewServiceTests(unittest.TestCase):
                                 "id": "match-1",
                                 "candidate_id": "candidate-1",
                                 "status": "pending",
+                                "recruitment_status": "under_review",
                                 "match_score": None,
                                 "created_at": "2026-08-04T10:00:00Z",
                                 "education_score": None,
@@ -161,6 +162,7 @@ class CandidateViewServiceTests(unittest.TestCase):
 
         self.assertEqual(len(candidates), 1)
         self.assertEqual(candidates[0]["status"], "pending")
+        self.assertEqual(candidates[0]["recruitment_status"], "under_review")
         self.assertIsNone(candidates[0]["match_score"])
         self.assertEqual(
             candidates[0]["match_result_created_at"],
@@ -211,6 +213,7 @@ class CandidateViewServiceTests(unittest.TestCase):
                         data={
                             "id": "match-1",
                             "status": "pending",
+                            "recruitment_status": "new",
                             "match_score": None,
                             "education_score": None,
                             "hard_skill_score": None,
@@ -247,6 +250,7 @@ class CandidateViewServiceTests(unittest.TestCase):
 
         self.assertEqual(detail["match_result_id"], "match-1")
         self.assertEqual(detail["status"], "pending")
+        self.assertEqual(detail["recruitment_status"], "new")
         self.assertIsNone(detail["match_score"])
         self.assertIsNone(detail["analysis_error"])
         self.assertIsNone(detail["summary"])

@@ -2,17 +2,26 @@ import { useMemo, useRef, useState } from 'react';
 import { UploadCloud } from 'lucide-react';
 import CandidateDetailsPanel from './CandidateDetailsPanel';
 import CandidateTable from './CandidateTable';
-import { getJobCandidate } from '../services/candidateService';
+import {
+    getJobCandidate,
+    retryCandidateAnalysis,
+    unlinkCandidateFromJob,
+    updateRecruitmentStatus,
+} from '../services/candidateService';
 import { rankJobCandidates } from '../utils/jobCandidateAnalysis';
 
 export default function JobCandidateAnalysis({
     jobId,
     candidates,
     onUpload,
+    onCandidatesChanged,
+    highlightedCandidateIds,
 }) {
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [detailError, setDetailError] = useState('');
+    const [actionError, setActionError] = useState('');
+    const [actionCandidateId, setActionCandidateId] = useState(null);
     const detailRequestId = useRef(0);
     const rankedCandidates = useMemo(
         () => rankJobCandidates(candidates),
@@ -49,6 +58,93 @@ export default function JobCandidateAnalysis({
         setSelectedCandidate(null);
         setLoadingDetails(false);
         setDetailError('');
+        setActionError('');
+    };
+
+    const refreshCandidates = async () => {
+        if (onCandidatesChanged) await onCandidatesChanged();
+    };
+
+    const handleRecruitmentStatusChange = async (
+        candidate,
+        recruitmentStatus
+    ) => {
+        if (candidate.recruitment_status === recruitmentStatus) return;
+        setActionCandidateId(candidate.id);
+        setActionError('');
+        try {
+            const updated = await updateRecruitmentStatus(
+                jobId,
+                candidate.id,
+                recruitmentStatus
+            );
+            if (updated && selectedCandidate?.id === candidate.id) {
+                setSelectedCandidate((current) => ({
+                    ...current,
+                    recruitment_status: updated.recruitment_status,
+                }));
+            }
+            await refreshCandidates();
+        } catch (error) {
+            setActionError(
+                error.message || 'Could not update recruitment status.'
+            );
+        } finally {
+            setActionCandidateId(null);
+        }
+    };
+
+    const handleRetryAnalysis = async (candidate) => {
+        setActionCandidateId(candidate.id);
+        setActionError('');
+        try {
+            const updated = await retryCandidateAnalysis(jobId, candidate.id);
+            if (updated) {
+                setSelectedCandidate((current) => ({
+                    ...current,
+                    status: updated.status,
+                    match_score: updated.match_score,
+                    education_score: updated.education_score,
+                    hard_skill_score: updated.hard_skill_score,
+                    soft_skill_score: updated.soft_skill_score,
+                    work_experience_score:
+                        updated.work_experience_score,
+                    gap_analysis: updated.gap_analysis,
+                    matched_skills: updated.matched_skills,
+                    missing_skills: updated.missing_skills,
+                    summary: updated.summary,
+                    processing_started_at:
+                        updated.processing_started_at,
+                    analysis_error: updated.analysis_error,
+                }));
+            }
+            await refreshCandidates();
+        } catch (error) {
+            setActionError(error.message || 'Could not retry the analysis.');
+        } finally {
+            setActionCandidateId(null);
+        }
+    };
+
+    const handleUnlinkCandidate = async (candidate) => {
+        const confirmed = window.confirm(
+            'Remove this candidate from the selected job? The candidate and resume will remain in the Candidate Database.'
+        );
+        if (!confirmed) return;
+
+        setActionCandidateId(candidate.id);
+        setActionError('');
+        try {
+            await unlinkCandidateFromJob(jobId, candidate.id);
+            closeDetails();
+            await refreshCandidates();
+        } catch (error) {
+            setActionError(
+                error.message || 'Could not remove the candidate from this job.'
+            );
+        } finally {
+            setActionCandidateId(null);
+        }
     };
 
     return (
@@ -75,17 +171,36 @@ export default function JobCandidateAnalysis({
                     </button>
                 </div>
 
+                {actionError && !selectedCandidate ? (
+                    <div className="mx-6 mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {actionError}
+                    </div>
+                ) : null}
+
                 <CandidateTable
                     candidates={rankedCandidates}
                     onCandidateSelect={handleCandidateSelect}
+                    onRecruitmentStatusChange={handleRecruitmentStatusChange}
+                    updatingCandidateId={actionCandidateId}
+                    highlightedCandidateIds={highlightedCandidateIds}
                 />
             </div>
 
             <CandidateDetailsPanel
                 candidate={selectedCandidate}
                 isLoading={loadingDetails}
-                error={detailError}
+                error={detailError || actionError}
                 onClose={closeDetails}
+                onRecruitmentStatusChange={(status) =>
+                    handleRecruitmentStatusChange(selectedCandidate, status)
+                }
+                onRetryAnalysis={() =>
+                    handleRetryAnalysis(selectedCandidate)
+                }
+                onUnlink={() => handleUnlinkCandidate(selectedCandidate)}
+                isActionPending={
+                    actionCandidateId === selectedCandidate?.id
+                }
             />
         </>
     );

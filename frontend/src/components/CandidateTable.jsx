@@ -7,6 +7,14 @@ const statusClasses = {
     failed: 'bg-rose-50 text-rose-700 border-rose-100',
 };
 
+const recruitmentStatuses = [
+    ['new', 'New'],
+    ['under_review', 'Under Review'],
+    ['shortlisted', 'Shortlisted'],
+    ['rejected', 'Rejected'],
+    ['archived', 'Archived'],
+];
+
 const matchScoreLabel = (candidate, status) => {
     if (
         status === 'completed' &&
@@ -15,9 +23,7 @@ const matchScoreLabel = (candidate, status) => {
     ) {
         return `${Math.round(candidate.match_score * 100) / 100}%`;
     }
-    return status === 'pending' || status === 'processing'
-        ? 'Pending Analysis'
-        : '--';
+    return '--';
 };
 
 const formatUploadDate = (value) => {
@@ -35,6 +41,9 @@ export default function CandidateTable({
     candidates,
     mode = 'job',
     onCandidateSelect,
+    onRecruitmentStatusChange,
+    updatingCandidateId,
+    highlightedCandidateIds,
 }) {
     const isDatabaseView = mode === 'database';
     const headings = isDatabaseView
@@ -45,6 +54,7 @@ export default function CandidateTable({
               'Location',
               'Match Score',
               'Analysis Status',
+              'Recruitment Status',
           ];
 
     return (
@@ -72,6 +82,12 @@ export default function CandidateTable({
                         const statusClass =
                             statusClasses[status] ||
                             'bg-slate-50 text-slate-600 border-slate-200';
+                        const candidateKey = String(
+                            candidate.match_result_id || candidate.id || ''
+                        );
+                        const isNewlyCompleted =
+                            !isDatabaseView &&
+                            highlightedCandidateIds?.has(candidateKey);
 
                         return (
                             <tr
@@ -87,7 +103,11 @@ export default function CandidateTable({
                                         onCandidateSelect(candidate);
                                     }
                                 }}
-                                className="hover:bg-slate-50/70 transition-colors cursor-pointer focus:outline-none focus:bg-blue-50/40"
+                                className={`hover:bg-slate-50/70 transition-colors duration-700 cursor-pointer focus:outline-none focus:bg-blue-50/40 ${
+                                    isNewlyCompleted
+                                        ? 'bg-emerald-50/70'
+                                        : ''
+                                }`}
                             >
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
@@ -141,6 +161,46 @@ export default function CandidateTable({
                                         {status}
                                     </span>
                                 </td>
+                                {!isDatabaseView ? (
+                                    <td className="px-6 py-4">
+                                        <select
+                                            value={
+                                                candidate.recruitment_status ||
+                                                'new'
+                                            }
+                                            disabled={
+                                                updatingCandidateId ===
+                                                candidate.id
+                                            }
+                                            onClick={(event) =>
+                                                event.stopPropagation()
+                                            }
+                                            onKeyDown={(event) =>
+                                                event.stopPropagation()
+                                            }
+                                            onChange={(event) => {
+                                                event.stopPropagation();
+                                                onRecruitmentStatusChange?.(
+                                                    candidate,
+                                                    event.target.value
+                                                );
+                                            }}
+                                            aria-label={`Recruitment status for ${candidate.name || 'candidate'}`}
+                                            className="border border-slate-200 bg-white text-xs font-semibold text-slate-600 px-2.5 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+                                        >
+                                            {recruitmentStatuses.map(
+                                                ([value, label]) => (
+                                                    <option
+                                                        key={value}
+                                                        value={value}
+                                                    >
+                                                        {label}
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+                                    </td>
+                                ) : null}
                             </tr>
                         );
                     })}

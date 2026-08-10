@@ -7,7 +7,7 @@ CANDIDATE_DETAIL_FIELDS = (
     "work_experience"
 )
 MATCH_LIST_FIELDS = (
-    "id,candidate_id,status,match_score,created_at,"
+    "id,candidate_id,status,recruitment_status,match_score,created_at,"
     "education_score,hard_skill_score,soft_skill_score,"
     "work_experience_score"
 )
@@ -161,6 +161,7 @@ def get_job_candidates(supabase, recruiter_id: str, job_id: str) -> list[dict]:
                 **candidate,
                 "match_result_id": match.get("id"),
                 "status": match.get("status"),
+                "recruitment_status": match.get("recruitment_status"),
                 "match_score": match.get("match_score"),
                 "match_result_created_at": match.get("created_at"),
                 "education_score": match.get("education_score"),
@@ -211,6 +212,7 @@ def get_job_candidate_detail(
         **candidate,
         "match_result_id": match.get("id"),
         "status": match.get("status"),
+        "recruitment_status": match.get("recruitment_status"),
         "match_score": match.get("match_score"),
         "match_result_created_at": match.get("created_at"),
         "education_score": match.get("education_score"),

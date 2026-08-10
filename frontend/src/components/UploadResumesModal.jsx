@@ -101,9 +101,13 @@ export default function UploadResumesModal({
         try {
             const response = await uploadResumes(jobId, selectedFiles);
             const uploadResults = response.results || [];
-            setResults(uploadResults);
             if (uploadResults.some((result) => result.status === 'completed')) {
+                setSelectedFiles([]);
+                setValidationErrors([]);
+                setResults([]);
                 onUploadComplete?.(uploadResults);
+            } else {
+                setResults(uploadResults);
             }
         } catch (error) {
             if (Array.isArray(error.payload?.results) && error.payload.results.length) {
@@ -127,7 +131,7 @@ export default function UploadResumesModal({
                         type="button"
                         onClick={handleClose}
                         disabled={isSubmitting}
-                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Close resume upload"
                     >
                         <X className="w-5 h-5" />
@@ -153,7 +157,7 @@ export default function UploadResumesModal({
                             addFiles(event.dataTransfer.files);
                         }}
                         disabled={isSubmitting}
-                        className="w-full bg-white border-2 border-dashed rounded-3xl p-10 text-center flex flex-col items-center justify-center transition-all cursor-pointer border-slate-200 hover:border-blue-400 hover:bg-slate-50/30"
+                        className="w-full bg-white border-2 border-dashed rounded-3xl p-10 text-center flex flex-col items-center justify-center transition-all cursor-pointer border-slate-200 hover:border-blue-400 hover:bg-slate-50/30 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         <div className="w-14 h-14 bg-blue-50 border border-blue-100 text-[#1D5BF2] rounded-2xl flex items-center justify-center mb-4 shadow-sm">
                             <UploadCloud className="w-7 h-7" />
@@ -199,6 +203,17 @@ export default function UploadResumesModal({
                         </div>
                     )}
 
+                    {isSubmitting ? (
+                        <div
+                            role="status"
+                            aria-live="polite"
+                            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold text-[#1D5BF2]"
+                        >
+                            Uploading resumes and extracting candidate
+                            information. Please wait...
+                        </div>
+                    ) : null}
+
                     {results.length > 0 && (
                         <div className="space-y-2">
                             {results.map((result, index) => (
@@ -229,7 +244,7 @@ export default function UploadResumesModal({
                             type="button"
                             onClick={handleClose}
                             disabled={isSubmitting}
-                            className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold px-5 py-2.5 rounded-xl transition-all cursor-pointer"
+                            className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold px-5 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             Cancel
                         </button>
@@ -237,7 +252,7 @@ export default function UploadResumesModal({
                             type="button"
                             onClick={handleSubmit}
                             disabled={isSubmitting || selectedFiles.length === 0}
-                            className="bg-[#1D5BF2] hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-blue-500/15 transition-all cursor-pointer"
+                            className="bg-[#1D5BF2] hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-blue-500/15 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? 'Processing...' : 'Upload Resumes'}
                         </button>
