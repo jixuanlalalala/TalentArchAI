@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
     Briefcase,
@@ -108,6 +109,7 @@ const buildAnalysisToast = (transitions) => {
 export default function JobsTab({
     onViewReport,
 }) {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [jobs, setJobs] = useState([]);
     const [loadingJobs, setLoadingJobs] = useState(true);
     const [jobsError, setJobsError] = useState('');
@@ -121,7 +123,7 @@ export default function JobsTab({
     const [rediscoveryError, setRediscoveryError] = useState('');
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [uploadSuccessMessage, setUploadSuccessMessage] = useState('');
-    const [selectedJobId, setSelectedJobId] = useState(null);
+    const selectedJobId = searchParams.get('job');
     const [jobCandidates, setJobCandidates] = useState([]);
     const [loadingJobCandidates, setLoadingJobCandidates] = useState(false);
     const [jobCandidatesError, setJobCandidatesError] = useState('');
@@ -137,6 +139,7 @@ export default function JobsTab({
     const toastSequenceRef = useRef(0);
     const highlightTimeoutsRef = useRef(new Map());
     const candidateResultsRef = useRef(null);
+    const skipCandidateLoadJobIdRef = useRef(null);
     const selectedJob = jobs.find((job) => job.id === selectedJobId);
     const selectedJobMatchingPriorities = useMemo(
         () => matchingPrioritiesFromJob(selectedJob),
@@ -260,6 +263,21 @@ export default function JobsTab({
 
     const [jobForm, setJobForm] = useState(createInitialJobForm);
 
+    const setSelectedJobInUrl = useCallback(
+        (jobId) => {
+            setSearchParams(
+                (currentParams) => {
+                    const nextParams = new URLSearchParams(currentParams);
+                    if (jobId) nextParams.set('job', jobId);
+                    else nextParams.delete('job');
+                    return nextParams;
+                },
+                { replace: true }
+            );
+        },
+        [setSearchParams]
+    );
+
     const openCreateJobModal = () => {
         setJobForm(createInitialJobForm());
         setShowCreateJobModal(true);
@@ -306,6 +324,13 @@ export default function JobsTab({
         let isMounted = true;
 
         if (!selectedJobId) {
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        if (skipCandidateLoadJobIdRef.current === selectedJobId) {
+            skipCandidateLoadJobIdRef.current = null;
             return () => {
                 isMounted = false;
             };
@@ -359,7 +384,7 @@ export default function JobsTab({
             const refreshedJobs = await getJobs();
             setJobs(refreshedJobs || []);
             resetAnalysisFeedback();
-            setSelectedJobId(null);
+            setSelectedJobInUrl(null);
 
             try {
                 const suggestions = await getRediscoveryCandidates(createdJob.id);
@@ -378,6 +403,7 @@ export default function JobsTab({
         } catch (err) {
             console.error(err);
         }
+
     };
 
     const handleCloseMatchingCandidates = () => {
@@ -391,18 +417,41 @@ export default function JobsTab({
     const handleAddMatchingCandidates = async (candidates) => {
         if (addingRediscoveryCandidates || !rediscoveryJob?.id) return;
 
+        const linkedJobId = rediscoveryJob.id;
         const candidateIds = candidates.map((candidate) => candidate.id);
         if (candidateIds.length === 0) return;
 
         setAddingRediscoveryCandidates(true);
         setRediscoveryError('');
         try {
-            await linkRediscoveryCandidates(rediscoveryJob.id, candidateIds);
+            await linkRediscoveryCandidates(linkedJobId, candidateIds);
             const refreshedJobs = await getJobs();
             setJobs(refreshedJobs || []);
             setShowMatchingCandidatesModal(false);
             setRediscoveryJob(null);
             setMatchingCandidates([]);
+
+            resetAnalysisFeedback(linkedJobId);
+            setJobCandidates([]);
+            setJobCandidatesError('');
+            setUploadSuccessMessage('');
+            if (selectedJobId !== linkedJobId) {
+                skipCandidateLoadJobIdRef.current = linkedJobId;
+            }
+            setSelectedJobInUrl(linkedJobId);
+
+            setLoadingJobCandidates(true);
+            try {
+                const linkedCandidates = await getJobCandidates(linkedJobId);
+                applyJobCandidates(linkedJobId, linkedCandidates);
+            } catch (refreshError) {
+                setJobCandidatesError(
+                    refreshError.message ||
+                        'Candidates were added, but the candidate list could not refresh.'
+                );
+            } finally {
+                setLoadingJobCandidates(false);
+            }
         } catch (error) {
             setRediscoveryError(
                 error.message || 'Candidates could not be added to this job.'
@@ -420,7 +469,7 @@ export default function JobsTab({
                 setJobs(refreshedJobs || []);
                 if (selectedJobId === id) {
                     resetAnalysisFeedback();
-                    setSelectedJobId(null);
+                    setSelectedJobInUrl(null);
                 }
             } catch (err) {
                 console.error('Delete failed', err);
@@ -433,12 +482,12 @@ export default function JobsTab({
         setJobCandidates([]);
         setJobCandidatesError('');
         setUploadSuccessMessage('');
-        setSelectedJobId(jobId);
+        setSelectedJobInUrl(jobId);
     };
 
     const handleBackToList = () => {
         resetAnalysisFeedback();
-        setSelectedJobId(null);
+        setSelectedJobInUrl(null);
         setJobCandidates([]);
         setJobCandidatesError('');
         setUploadSuccessMessage('');
