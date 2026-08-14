@@ -44,6 +44,14 @@ class FakeSupabase:
 
 
 class JobServiceTests(unittest.TestCase):
+    def valid_job(self, **overrides):
+        data = {
+            "title": "Software Engineer",
+            "description": "Build and maintain software.",
+        }
+        data.update(overrides)
+        return data
+
     def test_job_description_is_required(self):
         for description in (None, "", "   "):
             with self.subTest(description=description):
@@ -96,6 +104,69 @@ class JobServiceTests(unittest.TestCase):
         jobs = get_jobs(supabase, "recruiter-1")
 
         self.assertEqual(jobs[0]["candidate_count"], 0)
+
+    def test_omitted_matching_priorities_use_defaults(self):
+        payload = _build_job_payload("recruiter-1", self.valid_job())
+
+        self.assertEqual(payload["hard_skill_weight"], 45)
+        self.assertEqual(payload["work_experience_weight"], 30)
+        self.assertEqual(payload["education_weight"], 15)
+        self.assertEqual(payload["soft_skill_weight"], 10)
+
+    def test_custom_matching_priorities_are_mapped_to_database_columns(self):
+        payload = _build_job_payload(
+            "recruiter-1",
+            self.valid_job(
+                matchingPriorities={
+                    "hardSkills": 60,
+                    "workExperience": 20,
+                    "education": 0,
+                    "softSkills": 20,
+                }
+            ),
+        )
+
+        self.assertEqual(payload["hard_skill_weight"], 60)
+        self.assertEqual(payload["work_experience_weight"], 20)
+        self.assertEqual(payload["education_weight"], 0)
+        self.assertEqual(payload["soft_skill_weight"], 20)
+
+    def test_incomplete_matching_priorities_are_rejected(self):
+        with self.assertRaisesRegex(JobValidationError, "four"):
+            _build_job_payload(
+                "recruiter-1",
+                self.valid_job(matchingPriorities={"hardSkills": 100}),
+            )
+
+    def test_matching_priority_total_must_equal_one_hundred(self):
+        with self.assertRaisesRegex(JobValidationError, "total exactly 100"):
+            _build_job_payload(
+                "recruiter-1",
+                self.valid_job(
+                    matchingPriorities={
+                        "hardSkills": 40,
+                        "workExperience": 20,
+                        "education": 10,
+                        "softSkills": 10,
+                    }
+                ),
+            )
+
+    def test_invalid_matching_priority_values_are_rejected(self):
+        invalid_values = (-1, 101, 12.5, "45", True)
+        for invalid_value in invalid_values:
+            with self.subTest(value=invalid_value):
+                priorities = {
+                    "hardSkills": invalid_value,
+                    "workExperience": 30,
+                    "education": 15,
+                    "softSkills": 10,
+                }
+                with self.assertRaises(JobValidationError):
+                    _build_job_payload(
+                        "recruiter-1",
+                        self.valid_job(matchingPriorities=priorities),
+                    )
 
 
 if __name__ == "__main__":

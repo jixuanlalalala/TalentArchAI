@@ -12,6 +12,22 @@ export const getCandidate = async (candidateId) => {
   return payload?.candidate || null;
 };
 
+export const getCandidateResumeUrl = async (candidateId) => {
+  const payload = await requestJson(`/candidates/${candidateId}/resume-url`, {
+    method: 'GET',
+  });
+  if (typeof payload?.url !== 'string' || !payload.url.trim()) {
+    throw new Error('Resume file is unavailable.');
+  }
+  return payload.url;
+};
+
+export const deleteCandidate = async (candidateId) => {
+  return requestJson(`/candidates/${candidateId}`, {
+    method: 'DELETE',
+  });
+};
+
 export const getJobCandidates = async (jobId) => {
   const payload = await requestJson(`/jobs/${jobId}/candidates`, {
     method: 'GET',

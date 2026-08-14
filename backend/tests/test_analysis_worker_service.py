@@ -12,6 +12,7 @@ from models.job_match_analysis import (  # noqa: E402
 )
 from services.analysis_worker_service import (  # noqa: E402
     AnalysisTask,
+    AnalysisTaskCancelled,
     process_next_analysis,
 )
 from services.job_analysis_service import JobAnalysisError  # noqa: E402
@@ -32,6 +33,12 @@ def task():
             required_skills=["Python"],
             job_type="full-time",
         ),
+        match_weights={
+            "hard_skills": 60,
+            "work_experience": 20,
+            "education": 10,
+            "soft_skills": 10,
+        },
     )
 
 
@@ -96,8 +103,42 @@ class AnalysisWorkerServiceTests(unittest.TestCase):
         self.assertEqual(result.outcome, "completed")
         self.assertEqual(result.task_id, "match-1")
         self.assertEqual(queue.completed[0][0], "match-1")
-        self.assertEqual(queue.completed[0][2], 77.5)
+        self.assertEqual(queue.completed[0][2], 81.0)
         self.assertEqual(received[0][0].model_dump(), task().candidate.model_dump())
+        self.assertNotIn("match_weights", received[0][1].model_dump())
+        self.assertFalse(queue.failed)
+
+    def test_successful_analysis_with_no_positive_applicable_weight_completes(self):
+        claimed_task = task()
+        claimed_task = AnalysisTask(
+            task_id=claimed_task.task_id,
+            candidate=claimed_task.candidate,
+            job=claimed_task.job,
+            match_weights={
+                "hard_skills": 0,
+                "work_experience": 70,
+                "education": 20,
+                "soft_skills": 10,
+            },
+        )
+        queue = FakeQueue(claimed_task)
+
+        result = process_next_analysis(
+            queue,
+            lambda *_: JobMatchAnalysis(
+                education_score=None,
+                hard_skill_score=90,
+                soft_skill_score=None,
+                work_experience_score=None,
+                matched_skills=["Python"],
+                missing_skills=[],
+                summary="Strong technical evidence.",
+                gap_analysis="No positively weighted criteria were applicable.",
+            ),
+        )
+
+        self.assertEqual(result.outcome, "completed")
+        self.assertIsNone(queue.completed[0][2])
         self.assertFalse(queue.failed)
 
     def test_safe_analysis_failure_marks_task_failed_without_retry(self):
@@ -125,6 +166,47 @@ class AnalysisWorkerServiceTests(unittest.TestCase):
 
         self.assertEqual(result.outcome, "failed")
         self.assertEqual(queue.failed, [("match-1", "Analysis failed.")])
+
+    def test_deleted_claimed_task_is_treated_as_cancelled(self):
+        queue = FakeQueue(task())
+
+        def load_cancelled(_task_id):
+            raise AnalysisTaskCancelled("Task was deleted.")
+
+        queue.load_claimed_task = load_cancelled
+        result = process_next_analysis(queue, lambda *_: analysis())
+
+        self.assertEqual(result.outcome, "cancelled")
+        self.assertEqual(result.task_id, "match-1")
+        self.assertFalse(queue.completed)
+        self.assertFalse(queue.failed)
+
+    def test_deletion_during_completion_is_treated_as_cancelled(self):
+        queue = FakeQueue(task())
+
+        def complete_cancelled(*_):
+            raise AnalysisTaskCancelled("Task was deleted.")
+
+        queue.complete = complete_cancelled
+        result = process_next_analysis(queue, lambda *_: analysis())
+
+        self.assertEqual(result.outcome, "cancelled")
+        self.assertFalse(queue.failed)
+
+    def test_deletion_before_failure_persistence_is_treated_as_cancelled(self):
+        queue = FakeQueue(task())
+
+        def analyzer(*_):
+            raise JobAnalysisError("Analysis failed safely.")
+
+        def fail_cancelled(*_):
+            raise AnalysisTaskCancelled("Task was deleted.")
+
+        queue.fail = fail_cancelled
+        result = process_next_analysis(queue, analyzer)
+
+        self.assertEqual(result.outcome, "cancelled")
+        self.assertFalse(queue.completed)
 
 
 if __name__ == "__main__":

@@ -20,17 +20,22 @@ class AnalysisTask:
     task_id: str
     candidate: CandidateMatchProfile
     job: JobMatchContext
+    match_weights: dict[str, int]
 
 
 @dataclass(frozen=True)
 class WorkerCycleResult:
-    outcome: Literal["idle", "completed", "failed"]
+    outcome: Literal["idle", "completed", "failed", "cancelled"]
     task_id: str | None = None
     failure_category: str | None = None
 
 
 class AnalysisWorkerError(RuntimeError):
     """Raised when worker state cannot be persisted reliably."""
+
+
+class AnalysisTaskCancelled(RuntimeError):
+    """Raised when a claimed match result was deleted during processing."""
 
 
 def process_next_analysis(
@@ -52,9 +57,11 @@ def process_next_analysis(
     try:
         task = queue.load_claimed_task(task_id)
         analysis = analyzer(task.candidate, task.job)
-        match_score = calculate_match_score(analysis)
+        match_score = calculate_match_score(analysis, task.match_weights)
         queue.complete(task_id, analysis, match_score)
         return WorkerCycleResult(outcome="completed", task_id=task_id)
+    except AnalysisTaskCancelled:
+        return WorkerCycleResult(outcome="cancelled", task_id=task_id)
     except JobAnalysisError as exc:
         safe_error = str(exc)
         failure_category = "analysis_service"
@@ -67,6 +74,8 @@ def process_next_analysis(
 
     try:
         queue.fail(task_id, safe_error)
+    except AnalysisTaskCancelled:
+        return WorkerCycleResult(outcome="cancelled", task_id=task_id)
     except Exception as exc:
         raise AnalysisWorkerError(
             "The failed analysis state could not be saved."

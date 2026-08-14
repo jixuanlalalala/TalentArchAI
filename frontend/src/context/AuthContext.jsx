@@ -66,6 +66,14 @@ export const AuthProvider = ({ children }) => {
         return { error };
     };
 
+    const clearLocalSession = async () => {
+        const { error } = await supabase.auth.signOut({ scope: 'local' });
+        if (!error) {
+            setUser(null);
+        }
+        return { error };
+    };
+
     //forgot password
     const forgotPassword = async email => {
         const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -74,13 +82,13 @@ export const AuthProvider = ({ children }) => {
         return { data, error };
     }
 
-
     const value = {
         user,
         loading,
         signUp,
         signIn,
         signOut,
+        clearLocalSession,
         forgotPassword,
     };
 

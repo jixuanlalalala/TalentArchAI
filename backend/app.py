@@ -3,12 +3,15 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from routes.candidate_routes import candidate_bp, candidate_database_bp
 from routes.job_routes import job_bp
+from routes.profile_routes import profile_bp
+from routes.report_routes import report_bp
 from routes.resume_routes import resume_bp
 
 app = Flask(__name__)
 CORS(app,
      resources={r"/api/*": {"origins": os.getenv("FRONTEND_ORIGIN", "http://localhost:5173"),
                             "allow_headers": ["Content-Type", "Authorization"],
+                            "expose_headers": ["Content-Disposition"],
                             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
                             }},
                             supports_credentials=True)
@@ -16,6 +19,8 @@ app.register_blueprint(job_bp, url_prefix="/api/jobs")
 app.register_blueprint(resume_bp, url_prefix="/api/jobs")
 app.register_blueprint(candidate_bp, url_prefix="/api/jobs")
 app.register_blueprint(candidate_database_bp, url_prefix="/api/candidates")
+app.register_blueprint(report_bp, url_prefix="/api/jobs")
+app.register_blueprint(profile_bp, url_prefix="/api/profile")
 
 
 @app.get("/health")

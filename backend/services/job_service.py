@@ -1,5 +1,10 @@
 import math
 
+from services.analysis_config import (
+    DEFAULT_MATCH_SCORE_WEIGHTS,
+    validate_match_score_weights,
+)
+
 VALID_JOB_TYPES = {"full-time", "part-time", "contract", "internship"}
 
 
@@ -9,6 +14,46 @@ class JobValidationError(ValueError):
 
 class JobServiceError(RuntimeError):
     pass
+
+
+MATCHING_PRIORITY_REQUEST_FIELDS = {
+    "hardSkills": "hard_skills",
+    "workExperience": "work_experience",
+    "education": "education",
+    "softSkills": "soft_skills",
+}
+
+MATCHING_PRIORITY_COLUMNS = {
+    "hard_skills": "hard_skill_weight",
+    "work_experience": "work_experience_weight",
+    "education": "education_weight",
+    "soft_skills": "soft_skill_weight",
+}
+
+
+def _matching_priority_payload(data):
+    if "matchingPriorities" not in data:
+        weights = dict(DEFAULT_MATCH_SCORE_WEIGHTS)
+    else:
+        supplied = data["matchingPriorities"]
+        if not isinstance(supplied, dict):
+            raise JobValidationError("Matching priorities must be an object")
+        if set(supplied) != set(MATCHING_PRIORITY_REQUEST_FIELDS):
+            raise JobValidationError("All four matching priorities are required")
+        weights = {
+            criterion: supplied[request_field]
+            for request_field, criterion in MATCHING_PRIORITY_REQUEST_FIELDS.items()
+        }
+
+    try:
+        validated = validate_match_score_weights(weights)
+    except ValueError as exc:
+        raise JobValidationError(str(exc)) from exc
+
+    return {
+        MATCHING_PRIORITY_COLUMNS[criterion]: value
+        for criterion, value in validated.items()
+    }
 
 
 def _optional_salary(value, field_name):
@@ -89,6 +134,7 @@ def _build_job_payload(recruiter_id, data):
         "salary_max": salary_max,
         "required_skills": normalized_skills,
         "location": location,
+        **_matching_priority_payload(data),
     }
 
 

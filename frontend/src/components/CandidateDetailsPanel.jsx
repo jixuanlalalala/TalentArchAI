@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
     BriefcaseBusiness,
     Code2,
+    ExternalLink,
     FileText,
     GraduationCap,
     HeartHandshake,
@@ -71,27 +72,39 @@ const scoreDisplay = (score, status, field) => {
 
 export default function CandidateDetailsPanel({
     candidate,
+    mode = 'profile',
     isLoading,
     error,
     onClose,
     onRecruitmentStatusChange,
     onRetryAnalysis,
     onUnlink,
+    onViewResume,
+    onDeleteCandidate,
     isActionPending = false,
+    isOpeningResume = false,
+    isDeletingCandidate = false,
 }) {
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+
     useEffect(() => {
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
-                onClose();
+                if (showDeleteConfirmation) {
+                    if (!isDeletingCandidate) setShowDeleteConfirmation(false);
+                } else {
+                    onClose();
+                }
             }
         };
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [onClose]);
+    }, [isDeletingCandidate, onClose, showDeleteConfirmation]);
 
     if (!candidate) return null;
 
+    const showAnalysis = mode === 'analysis';
     const status = String(
         candidate.status || candidate.extraction_status || 'pending'
     ).toLowerCase();
@@ -107,15 +120,25 @@ export default function CandidateDetailsPanel({
         'work_experience',
     ].some((field) => Array.isArray(candidate[field]));
     const hasAppliedJobs = Array.isArray(candidate.applied_jobs);
-    const hasJobActions = Boolean(
+    const hasJobActions = showAnalysis && Boolean(
         onRecruitmentStatusChange || onRetryAnalysis || onUnlink
     );
+
+    const handleConfirmedDelete = async () => {
+        const deleted = await onDeleteCandidate?.();
+        if (deleted === false) setShowDeleteConfirmation(false);
+    };
 
     return (
         <div
             className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end"
             onMouseDown={(event) => {
-                if (event.target === event.currentTarget) onClose();
+                if (
+                    event.target === event.currentTarget &&
+                    !isDeletingCandidate
+                ) {
+                    onClose();
+                }
             }}
         >
             <aside
@@ -140,7 +163,8 @@ export default function CandidateDetailsPanel({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer p-1"
+                        disabled={isDeletingCandidate}
+                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Close candidate details"
                     >
                         <X className="w-5 h-5" />
@@ -169,11 +193,13 @@ export default function CandidateDetailsPanel({
                                     </p>
                                 </div>
                             </div>
-                            <span
-                                className={`border text-[10px] font-bold px-2.5 py-1 rounded-full font-mono uppercase tracking-wider ${statusClass}`}
-                            >
-                                {status}
-                            </span>
+                            {showAnalysis ? (
+                                <span
+                                    className={`border text-[10px] font-bold px-2.5 py-1 rounded-full font-mono uppercase tracking-wider ${statusClass}`}
+                                >
+                                    {status}
+                                </span>
+                            ) : null}
                         </div>
 
                         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -212,6 +238,22 @@ export default function CandidateDetailsPanel({
                             </div>
                         </div>
                     </section>
+
+                    {!showAnalysis && onViewResume ? (
+                        <button
+                            type="button"
+                            onClick={onViewResume}
+                            disabled={isOpeningResume || isDeletingCandidate}
+                            className="w-full flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold px-4 py-3 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                            <span>
+                                {isOpeningResume
+                                    ? 'Opening Resume...'
+                                    : 'View Original Resume'}
+                            </span>
+                        </button>
+                    ) : null}
 
                     {hasExtractedProfile ? (
                         <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -342,80 +384,121 @@ export default function CandidateDetailsPanel({
                         </section>
                     ) : null}
 
-                    {status === 'failed' && candidate.analysis_error ? (
+                    {showAnalysis &&
+                    status === 'failed' &&
+                    candidate.analysis_error ? (
                         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                             {candidate.analysis_error}
                         </div>
                     ) : null}
 
-                    <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 flex items-center justify-center">
-                                <FileText className="w-5 h-5" />
+                    {showAnalysis ? (
+                        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 flex items-center justify-center">
+                                    <FileText className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-extrabold text-slate-900">
+                                        AI Analysis
+                                    </h3>
+                                    <p className="text-xs text-slate-400 mt-0.5">
+                                        Job-specific candidate assessment
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="font-extrabold text-slate-900">
-                                    AI Analysis
-                                </h3>
-                                <p className="text-xs text-slate-400 mt-0.5">
-                                    Job-specific candidate assessment
-                                </p>
-                            </div>
-                        </div>
 
-                        <div className="mt-5 space-y-4">
-                            {analysisItems.map(({ label, field, icon: Icon }) => {
-                                const score = scoreDisplay(
-                                    candidate[field],
-                                    status,
-                                    field
-                                );
-                                return (
-                                    <div key={field}>
-                                        <div className="flex items-center justify-between gap-3 mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <Icon className="w-4 h-4 text-slate-400" />
-                                                <span className="text-xs font-bold text-slate-600">
-                                                    {label}
-                                                </span>
+                            <div className="mt-5 space-y-4">
+                                {analysisItems.map(
+                                    ({ label, field, icon: Icon }) => {
+                                        const score = scoreDisplay(
+                                            candidate[field],
+                                            status,
+                                            field
+                                        );
+                                        return (
+                                            <div key={field}>
+                                                <div className="flex items-center justify-between gap-3 mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Icon className="w-4 h-4 text-slate-400" />
+                                                        <span className="text-xs font-bold text-slate-600">
+                                                            {label}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-400">
+                                                        {score.label}
+                                                    </span>
+                                                </div>
+                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-[#1D5BF2] rounded-full transition-all"
+                                                        style={{
+                                                            width: `${score.width}%`,
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
-                                            <span className="text-xs font-bold text-slate-400">
-                                                {score.label}
-                                            </span>
-                                        </div>
-                                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-[#1D5BF2] rounded-full transition-all"
-                                                style={{ width: `${score.width}%` }}
-                                            />
-                                        </div>
+                                        );
+                                    }
+                                )}
+
+                                {[
+                                    ['Matched Skills', 'matched_skills'],
+                                    ['Missing Skills', 'missing_skills'],
+                                ].map(([label, field]) => (
+                                    <div key={field}>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                            {label}
+                                        </p>
+                                        {candidate[field]?.length ? (
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {candidate[field].map(
+                                                    (skill, index) => (
+                                                        <span
+                                                            key={`${field}-${index}`}
+                                                            className="inline-flex border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600 px-2.5 py-1 rounded-full"
+                                                        >
+                                                            {skill}
+                                                        </span>
+                                                    )
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-400 mt-2">
+                                                --
+                                            </p>
+                                        )}
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </section>
+                                ))}
+                            </div>
+                        </section>
+                    ) : null}
 
-                    <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                        <h3 className="font-extrabold text-slate-900">
-                            Executive Summary
-                        </h3>
-                        <p className="text-sm text-slate-500 leading-6 mt-3">
-                            {candidate.summary ||
-                                'AI analysis has not been performed yet.'}
-                        </p>
-                    </section>
+                    {showAnalysis ? (
+                        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                            <h3 className="font-extrabold text-slate-900">
+                                Executive Summary
+                            </h3>
+                            <p className="text-sm text-slate-500 leading-6 mt-3">
+                                {candidate.summary ||
+                                    'AI analysis has not been performed yet.'}
+                            </p>
+                        </section>
+                    ) : null}
 
-                    <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                        <h3 className="font-extrabold text-slate-900">
-                            Gap Analysis
-                        </h3>
-                        <p className="text-sm text-slate-500 leading-6 mt-3">
-                            {typeof candidate.gap_analysis === 'string' &&
-                            candidate.gap_analysis.trim()
-                                ? candidate.gap_analysis
-                                : 'AI analysis has not been performed yet.'}
-                        </p>
-                    </section>
+                    {showAnalysis ? (
+                        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                            <h3 className="font-extrabold text-slate-900">
+                                Gap Analysis
+                            </h3>
+                            <p className="text-sm text-slate-500 leading-6 mt-3">
+                                {typeof candidate.gap_analysis === 'string' &&
+                                candidate.gap_analysis.trim()
+                                    ? candidate.gap_analysis
+                                    : 'AI analysis has not been performed yet.'}
+                            </p>
+                        </section>
+                    ) : null}
 
                     {hasJobActions ? (
                     <div className="space-y-3 pt-2 border-t border-slate-100">
@@ -479,8 +562,83 @@ export default function CandidateDetailsPanel({
                             Loading candidate details...
                         </p>
                     ) : null}
+
+                    {!showAnalysis && onDeleteCandidate ? (
+                        <div className="flex justify-end pt-4 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteConfirmation(true)}
+                                disabled={isDeletingCandidate}
+                                className="flex items-center gap-2 border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 text-sm font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                <span>Delete Candidate</span>
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             </aside>
+
+            {showDeleteConfirmation ? (
+                <div
+                    className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center px-4"
+                    onMouseDown={(event) => {
+                        if (
+                            event.target === event.currentTarget &&
+                            !isDeletingCandidate
+                        ) {
+                            setShowDeleteConfirmation(false);
+                        }
+                    }}
+                >
+                    <div
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-candidate-title"
+                        aria-describedby="delete-candidate-description"
+                        className="w-full max-w-md bg-white rounded-2xl border border-slate-100 shadow-2xl p-6"
+                        onMouseDown={(event) => event.stopPropagation()}
+                    >
+                        <h3
+                            id="delete-candidate-title"
+                            className="text-lg font-extrabold text-slate-900"
+                        >
+                            Delete Candidate?
+                        </h3>
+                        <p
+                            id="delete-candidate-description"
+                            className="text-sm text-slate-500 leading-6 mt-3"
+                        >
+                            This will permanently remove the candidate, their
+                            resume, and all associated job analysis results.
+                            This action cannot be undone.
+                        </p>
+                        <div className="flex items-center justify-end gap-3 mt-6">
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteConfirmation(false)}
+                                disabled={isDeletingCandidate}
+                                className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmedDelete}
+                                disabled={isDeletingCandidate}
+                                className="flex items-center gap-2 border border-rose-600 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                <span>
+                                    {isDeletingCandidate
+                                        ? 'Deleting...'
+                                        : 'Delete Candidate'}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

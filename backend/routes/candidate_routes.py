@@ -1,7 +1,12 @@
 from uuid import UUID
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, request
 
+from services.candidate_management_service import (
+    CandidateManagementError,
+    delete_owned_candidate,
+    get_owned_candidate_resume_reference,
+)
 from services.candidate_view_service import (
     CandidateViewServiceError,
     get_job_candidate_detail,
@@ -18,6 +23,14 @@ from services.match_result_service import (
     unlink_candidate_from_job,
     update_recruitment_status,
 )
+from services.resume_storage_service import (
+    RESUME_SIGNED_URL_EXPIRY_SECONDS,
+    ResumeStorageError,
+    ResumeUnavailableError,
+    create_resume_signed_url,
+    delete_resume,
+)
+from services.supabase_client import create_service_client
 from utils.decorators import require_auth
 
 candidate_bp = Blueprint("candidates", __name__)
@@ -94,6 +107,73 @@ def get_recruiter_candidate(candidate_id):
     if not candidate:
         return jsonify({"error": "Candidate not found"}), 404
     return jsonify({"candidate": candidate}), 200
+
+
+@candidate_database_bp.get("/<candidate_id>/resume-url")
+@require_auth
+def get_candidate_resume_url(candidate_id):
+    if not _is_uuid(candidate_id):
+        return jsonify({"error": "Invalid candidate ID"}), 400
+
+    try:
+        service_supabase = create_service_client()
+        reference = get_owned_candidate_resume_reference(
+            service_supabase,
+            g.user_id,
+            candidate_id,
+        )
+    except (RuntimeError, CandidateManagementError):
+        return jsonify({"error": "The candidate could not be verified."}), 503
+
+    if not reference:
+        return jsonify({"error": "Candidate not found"}), 404
+
+    try:
+        signed_url = create_resume_signed_url(
+            service_supabase,
+            g.user_id,
+            reference.storage_path,
+        )
+    except ResumeUnavailableError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except ResumeStorageError as exc:
+        return jsonify({"error": str(exc)}), 503
+
+    return jsonify(
+        {
+            "url": signed_url,
+            "expires_in": RESUME_SIGNED_URL_EXPIRY_SECONDS,
+        }
+    ), 200
+
+
+@candidate_database_bp.delete("/<candidate_id>")
+@require_auth
+def delete_recruiter_candidate(candidate_id):
+    if not _is_uuid(candidate_id):
+        return jsonify({"error": "Invalid candidate ID"}), 400
+
+    try:
+        service_supabase = create_service_client()
+        deleted_candidate = delete_owned_candidate(
+            service_supabase,
+            g.user_id,
+            candidate_id,
+        )
+    except CandidateManagementError as exc:
+        return jsonify({"error": str(exc)}), 503
+    except RuntimeError:
+        return jsonify({"error": "Candidate storage is not configured."}), 503
+
+    if not deleted_candidate:
+        return jsonify({"error": "Candidate not found"}), 404
+
+    if not delete_resume(service_supabase, deleted_candidate.storage_path):
+        current_app.logger.warning(
+            "Candidate deleted but private resume cleanup could not be confirmed."
+        )
+
+    return jsonify({"message": "Candidate deleted"}), 200
 
 
 @candidate_bp.get("/<job_id>/candidates")

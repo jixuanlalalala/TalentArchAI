@@ -1,5 +1,5 @@
 from models.job_match_analysis import JobMatchAnalysis
-from services.analysis_config import MATCH_SCORE_WEIGHTS
+from services.analysis_config import validate_match_score_weights
 
 
 SCORE_FIELDS = {
@@ -14,11 +14,20 @@ class MatchScoreError(ValueError):
     """Raised when an overall score cannot be calculated safely."""
 
 
-def calculate_match_score(analysis: JobMatchAnalysis) -> float:
+def calculate_match_score(
+    analysis: JobMatchAnalysis,
+    weights,
+) -> float | None:
+    try:
+        validated_weights = validate_match_score_weights(weights)
+    except ValueError as exc:
+        raise MatchScoreError(str(exc)) from exc
     weighted_score = 0.0
     applicable_weight = 0.0
 
-    for criterion, weight in MATCH_SCORE_WEIGHTS.items():
+    for criterion, weight in validated_weights.items():
+        if weight == 0:
+            continue
         component_score = getattr(analysis, SCORE_FIELDS[criterion])
         if component_score is None:
             continue
@@ -26,6 +35,6 @@ def calculate_match_score(analysis: JobMatchAnalysis) -> float:
         applicable_weight += weight
 
     if applicable_weight == 0:
-        raise MatchScoreError("At least one matching criterion must be applicable.")
+        return None
 
     return round(weighted_score / applicable_weight, 2)

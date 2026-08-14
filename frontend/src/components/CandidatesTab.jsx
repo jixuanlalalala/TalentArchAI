@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { UserRound, Users } from 'lucide-react';
 import CandidateDetailsPanel from './CandidateDetailsPanel';
 import CandidateTable from './CandidateTable';
-import { getCandidate, getCandidates } from '../services/candidateService';
+import {
+    deleteCandidate,
+    getCandidate,
+    getCandidateResumeUrl,
+    getCandidates,
+} from '../services/candidateService';
 
 export default function CandidatesTab() {
     const [candidates, setCandidates] = useState([]);
@@ -11,6 +16,8 @@ export default function CandidatesTab() {
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [pageError, setPageError] = useState('');
     const [detailError, setDetailError] = useState('');
+    const [isDeletingCandidate, setIsDeletingCandidate] = useState(false);
+    const [isOpeningResume, setIsOpeningResume] = useState(false);
     const detailRequestId = useRef(0);
 
     useEffect(() => {
@@ -57,6 +64,60 @@ export default function CandidatesTab() {
             if (detailRequestId.current === requestId) {
                 setLoadingDetails(false);
             }
+        }
+    };
+
+    const closeCandidateDetails = () => {
+        detailRequestId.current += 1;
+        setSelectedCandidate(null);
+        setLoadingDetails(false);
+        setDetailError('');
+        setIsDeletingCandidate(false);
+        setIsOpeningResume(false);
+    };
+
+    const handleViewResume = async () => {
+        if (!selectedCandidate || isOpeningResume) return;
+
+        const resumeWindow = window.open('about:blank', '_blank');
+        if (!resumeWindow) {
+            setDetailError(
+                'The resume tab was blocked. Please allow pop-ups and try again.'
+            );
+            return;
+        }
+        resumeWindow.opener = null;
+        setDetailError('');
+        setIsOpeningResume(true);
+
+        try {
+            const url = await getCandidateResumeUrl(selectedCandidate.id);
+            resumeWindow.location.replace(url);
+        } catch (error) {
+            resumeWindow.close();
+            setDetailError(error.message || 'Resume file is unavailable.');
+        } finally {
+            setIsOpeningResume(false);
+        }
+    };
+
+    const handleDeleteCandidate = async () => {
+        if (!selectedCandidate || isDeletingCandidate) return;
+
+        const candidateId = selectedCandidate.id;
+        setDetailError('');
+        setIsDeletingCandidate(true);
+        try {
+            await deleteCandidate(candidateId);
+            setCandidates((current) =>
+                current.filter((candidate) => candidate.id !== candidateId)
+            );
+            closeCandidateDetails();
+            return true;
+        } catch (error) {
+            setDetailError(error.message || 'The candidate could not be deleted.');
+            setIsDeletingCandidate(false);
+            return false;
         }
     };
 
@@ -126,15 +187,16 @@ export default function CandidatesTab() {
             </div>
 
             <CandidateDetailsPanel
+                key={selectedCandidate?.id || 'candidate-details'}
                 candidate={selectedCandidate}
+                mode="profile"
                 isLoading={loadingDetails}
                 error={detailError}
-                onClose={() => {
-                    detailRequestId.current += 1;
-                    setSelectedCandidate(null);
-                    setLoadingDetails(false);
-                    setDetailError('');
-                }}
+                onClose={closeCandidateDetails}
+                onViewResume={handleViewResume}
+                onDeleteCandidate={handleDeleteCandidate}
+                isOpeningResume={isOpeningResume}
+                isDeletingCandidate={isDeletingCandidate}
             />
         </div>
     );

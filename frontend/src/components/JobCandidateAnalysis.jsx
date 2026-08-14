@@ -188,6 +188,7 @@ export default function JobCandidateAnalysis({
 
             <CandidateDetailsPanel
                 candidate={selectedCandidate}
+                mode="analysis"
                 isLoading={loadingDetails}
                 error={detailError || actionError}
                 onClose={closeDetails}

@@ -3,13 +3,17 @@ from datetime import datetime
 from pydantic import ValidationError
 
 from models.job_match_analysis import CandidateMatchProfile, JobMatchAnalysis, JobMatchContext
-from services.analysis_worker_service import AnalysisTask
+from services.analysis_config import validate_match_score_weights
+from services.analysis_worker_service import AnalysisTask, AnalysisTaskCancelled
 
 
 CANDIDATE_ANALYSIS_FIELDS = (
     "education,hard_skills,soft_skills,work_experience"
 )
-JOB_ANALYSIS_FIELDS = "title,description,required_skills,type"
+JOB_ANALYSIS_FIELDS = (
+    "title,description,required_skills,type,hard_skill_weight,"
+    "work_experience_weight,education_weight,soft_skill_weight"
+)
 
 
 class AnalysisQueueError(RuntimeError):
@@ -68,7 +72,9 @@ class SupabaseAnalysisQueue:
             )
             match = _response_data(match_response)
             if not match:
-                raise AnalysisQueueError("The claimed analysis task was not found.")
+                raise AnalysisTaskCancelled(
+                    "The claimed analysis task was deleted."
+                )
 
             candidate_response = (
                 self.supabase.table("candidates")
@@ -88,7 +94,9 @@ class SupabaseAnalysisQueue:
             )
             job_data = _response_data(job_response)
             if not candidate_data or not job_data:
-                raise AnalysisQueueError("Analysis data could not be loaded.")
+                raise AnalysisTaskCancelled(
+                    "The claimed analysis data was deleted."
+                )
 
             return AnalysisTask(
                 task_id=str(match["id"]),
@@ -99,7 +107,19 @@ class SupabaseAnalysisQueue:
                     required_skills=job_data.get("required_skills") or [],
                     job_type=job_data.get("type"),
                 ),
+                match_weights=validate_match_score_weights(
+                    {
+                        "hard_skills": job_data.get("hard_skill_weight"),
+                        "work_experience": job_data.get(
+                            "work_experience_weight"
+                        ),
+                        "education": job_data.get("education_weight"),
+                        "soft_skills": job_data.get("soft_skill_weight"),
+                    }
+                ),
             )
+        except AnalysisTaskCancelled:
+            raise
         except AnalysisQueueError:
             raise
         except (KeyError, TypeError, ValidationError) as exc:
@@ -111,7 +131,7 @@ class SupabaseAnalysisQueue:
         self,
         task_id: str,
         analysis: JobMatchAnalysis,
-        match_score: float,
+        match_score: float | None,
     ) -> None:
         payload = {
             "status": "completed",
@@ -128,7 +148,11 @@ class SupabaseAnalysisQueue:
                 .execute()
             )
             if not _response_data(response, []):
-                raise AnalysisQueueError("The completed analysis could not be saved.")
+                raise AnalysisTaskCancelled(
+                    "The claimed analysis task was deleted."
+                )
+        except AnalysisTaskCancelled:
+            raise
         except AnalysisQueueError:
             raise
         except Exception as exc:
@@ -152,7 +176,11 @@ class SupabaseAnalysisQueue:
                 .execute()
             )
             if not _response_data(response, []):
-                raise AnalysisQueueError("The failed analysis state could not be saved.")
+                raise AnalysisTaskCancelled(
+                    "The claimed analysis task was deleted."
+                )
+        except AnalysisTaskCancelled:
+            raise
         except AnalysisQueueError:
             raise
         except Exception as exc:

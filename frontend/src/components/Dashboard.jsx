@@ -13,6 +13,7 @@ import { testFlaskConnection } from '../services/api';
 export default function Dashboard() {
 
     const [activeTab, setActiveTab] = useState('jobs');
+    const [selectedReportJobId, setSelectedReportJobId] = useState(null);
     const [testMessage, setTestMessage] = useState('');
     const [testError, setTestError] = useState('');
     const { signOut } = useAuth();
@@ -152,7 +153,8 @@ export default function Dashboard() {
                     )}
                     {activeTab === 'jobs' && (
                         <JobsTab
-                            onViewReport={() => {
+                            onViewReport={(jobId) => {
+                                setSelectedReportJobId(jobId || null);
                                 setActiveTab('reports');
                             }}
                         />
@@ -163,7 +165,7 @@ export default function Dashboard() {
                     )}
 
                     {activeTab === 'reports' && (
-                        <ReportsTab />
+                        <ReportsTab initialJobId={selectedReportJobId} />
                     )}
 
                     {activeTab === 'profile' && (

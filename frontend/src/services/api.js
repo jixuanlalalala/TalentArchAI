@@ -49,6 +49,38 @@ export const requestJson = async (path, options = {}) => {
   return payload;
 };
 
+export const requestFile = async (path, options = {}) => {
+  const headers = await getAuthHeaders();
+  const requestHeaders = {
+    ...headers,
+    ...(options.headers || {}),
+  };
+
+  if (options.body != null && !requestHeaders['Content-Type']) {
+    requestHeaders['Content-Type'] = 'application/json';
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: requestHeaders,
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    const error = new Error(payload.error || 'File request failed');
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+  return {
+    blob: await response.blob(),
+    filename: filenameMatch?.[1] || 'TalentArch_Candidate_Report.xlsx',
+  };
+};
+
 export const testFlaskConnection = async () => {
   return requestJson('/jobs/me');
 };

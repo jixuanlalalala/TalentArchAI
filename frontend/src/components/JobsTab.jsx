@@ -36,8 +36,24 @@ import {
     calculateJobCandidateStatistics,
     detectCandidateAnalysisTransitions,
 } from '../utils/jobCandidateAnalysis';
+import {
+    createDefaultMatchingPriorities,
+    MATCHING_PRIORITY_FIELDS,
+    matchingPrioritiesFromJob,
+} from '../utils/matchingPriorities';
 
 const NEWLY_COMPLETED_HIGHLIGHT_MS = 4000;
+
+const createInitialJobForm = () => ({
+    title: '',
+    salaryMin: '',
+    salaryMax: '',
+    type: 'Full-time',
+    location: '',
+    skills: '',
+    description: '',
+    matchingPriorities: createDefaultMatchingPriorities(),
+});
 
 const buildAnalysisToast = (transitions) => {
     const completed = transitions.newlyCompletedCandidates;
@@ -122,6 +138,10 @@ export default function JobsTab({
     const highlightTimeoutsRef = useRef(new Map());
     const candidateResultsRef = useRef(null);
     const selectedJob = jobs.find((job) => job.id === selectedJobId);
+    const selectedJobMatchingPriorities = useMemo(
+        () => matchingPrioritiesFromJob(selectedJob),
+        [selectedJob]
+    );
     const analysisStatistics = useMemo(
         () => calculateJobCandidateStatistics(jobCandidates),
         [jobCandidates]
@@ -238,15 +258,12 @@ export default function JobsTab({
         highlightTimeoutsRef.current.clear();
     }, []);
 
-    const [jobForm, setJobForm] = useState({
-        title: '',
-        salaryMin: '',
-        salaryMax: '',
-        type: 'Full-time',
-        location: '',
-        skills: '',
-        description: ''
-    });
+    const [jobForm, setJobForm] = useState(createInitialJobForm);
+
+    const openCreateJobModal = () => {
+        setJobForm(createInitialJobForm());
+        setShowCreateJobModal(true);
+    };
 
     useEffect(
         () => () => {
@@ -332,20 +349,13 @@ export default function JobsTab({
             location: jobForm.location || 'Remote',
             skills: jobForm.skills ? jobForm.skills.split(',').map(s => s.trim()).filter(Boolean) : [],
             description: jobForm.description,
+            matchingPriorities: jobForm.matchingPriorities,
         };
 
         try {
             const createdJob = await createJob(newJobData);
             setShowCreateJobModal(false);
-            setJobForm({
-                title: '',
-                salaryMin: '',
-                salaryMax: '',
-                type: 'Full-time',
-                location: '',
-                skills: '',
-                description: ''
-            });
+            setJobForm(createInitialJobForm());
             const refreshedJobs = await getJobs();
             setJobs(refreshedJobs || []);
             resetAnalysisFeedback();
@@ -565,7 +575,7 @@ export default function JobsTab({
 
                             <button
                                 id="create-job-btn"
-                                onClick={() => setShowCreateJobModal(true)}
+                                onClick={openCreateJobModal}
                                 className="flex items-center gap-2 bg-[#1D5BF2] hover:bg-blue-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-blue-500/10 cursor-pointer"
                             >
                                 <PlusCircle className="w-4.5 h-4.5"></PlusCircle>
@@ -712,6 +722,22 @@ export default function JobsTab({
                         </div>
                     ) : null}
 
+                    <div>
+                        <h4 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+                            Matching Priorities
+                        </h4>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {MATCHING_PRIORITY_FIELDS.map(({ key, label }) => (
+                                <span
+                                    key={key}
+                                    className="bg-slate-50 border border-slate-200/60 rounded-md text-[10px] font-bold text-slate-600 px-2 py-1"
+                                >
+                                    {label}: {selectedJobMatchingPriorities[key]}%
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+
                     {/**Work Area */}
                     {loadingJobCandidates ? (
                         <div className="py-16 text-center text-sm font-semibold text-slate-400">
@@ -817,7 +843,7 @@ export default function JobsTab({
 
                     <button
                         id="create-first-job-btn"
-                        onClick={() => setShowCreateJobModal(true)}
+                        onClick={openCreateJobModal}
                         className="flex items-center justify-center gap-2 bg-[#1D5BF2] hover:bg-blue-700 text-white text-sm font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/10 active:scale-[0.98] cursor-pointer"
                     >
                         <span>Create your first job</span>
@@ -908,13 +934,15 @@ export default function JobsTab({
                 </div>
             )}
 
-            <CreateJobModal
-                isOpen={showCreateJobModal}
-                onClose={() => setShowCreateJobModal(false)}
-                onSubmit={handleCreateJob}
-                jobForm={jobForm}
-                setJobForm={setJobForm}
-            />
+            {showCreateJobModal ? (
+                <CreateJobModal
+                    isOpen
+                    onClose={() => setShowCreateJobModal(false)}
+                    onSubmit={handleCreateJob}
+                    jobForm={jobForm}
+                    setJobForm={setJobForm}
+                />
+            ) : null}
 
             <MatchingCandidatesModal
                 isOpen={showMatchingCandidatesModal}

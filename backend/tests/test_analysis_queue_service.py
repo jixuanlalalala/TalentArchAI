@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from models.job_match_analysis import JobMatchAnalysis  # noqa: E402
 from services.analysis_queue_service import SupabaseAnalysisQueue  # noqa: E402
+from services.analysis_worker_service import AnalysisTaskCancelled  # noqa: E402
 
 
 class FakeQuery:
@@ -110,6 +111,10 @@ class AnalysisQueueServiceTests(unittest.TestCase):
                             "description": "Build services.",
                             "required_skills": ["Python"],
                             "type": "full-time",
+                            "hard_skill_weight": 55,
+                            "work_experience_weight": 25,
+                            "education_weight": 10,
+                            "soft_skill_weight": 10,
                         }
                     )
                 ],
@@ -131,6 +136,8 @@ class AnalysisQueueServiceTests(unittest.TestCase):
             self.assertNotIn(forbidden, candidate_select)
         self.assertEqual(loaded.task_id, "match-1")
         self.assertEqual(loaded.job.title, "Engineer")
+        self.assertEqual(loaded.match_weights["hard_skills"], 55)
+        self.assertNotIn("hard_skill_weight", loaded.job.model_dump())
 
     def test_completion_persists_scores_and_completed_status(self):
         supabase = FakeSupabase(
@@ -139,7 +146,7 @@ class AnalysisQueueServiceTests(unittest.TestCase):
             }
         )
 
-        SupabaseAnalysisQueue(supabase).complete("match-1", analysis(), 78.25)
+        SupabaseAnalysisQueue(supabase).complete("match-1", analysis(), None)
 
         update_payload = next(
             entry[1]
@@ -147,10 +154,74 @@ class AnalysisQueueServiceTests(unittest.TestCase):
             if entry[0] == "update"
         )
         self.assertEqual(update_payload["status"], "completed")
-        self.assertEqual(update_payload["match_score"], 78.25)
+        self.assertIsNone(update_payload["match_score"])
         self.assertEqual(update_payload["hard_skill_score"], 90)
         self.assertIsNone(update_payload["analysis_error"])
         self.assertIn(("eq", "status", "processing"), supabase.operations)
+
+    def test_missing_claimed_task_is_reported_as_cancelled(self):
+        supabase = FakeSupabase(
+            table_responses={
+                "match_results": [SimpleNamespace(data=None)],
+            }
+        )
+
+        with self.assertRaises(AnalysisTaskCancelled):
+            SupabaseAnalysisQueue(supabase).load_claimed_task("match-1")
+
+    def test_candidate_deleted_after_claim_is_reported_as_cancelled(self):
+        supabase = FakeSupabase(
+            table_responses={
+                "match_results": [
+                    SimpleNamespace(
+                        data={
+                            "id": "match-1",
+                            "job_id": "job-1",
+                            "candidate_id": "candidate-1",
+                            "status": "processing",
+                        }
+                    )
+                ],
+                "candidates": [SimpleNamespace(data=None)],
+                "job_postings": [
+                    SimpleNamespace(
+                        data={
+                            "title": "Engineer",
+                            "description": "Build services.",
+                            "required_skills": ["Python"],
+                            "type": "full-time",
+                            "hard_skill_weight": 45,
+                            "work_experience_weight": 30,
+                            "education_weight": 15,
+                            "soft_skill_weight": 10,
+                        }
+                    )
+                ],
+            }
+        )
+
+        with self.assertRaises(AnalysisTaskCancelled):
+            SupabaseAnalysisQueue(supabase).load_claimed_task("match-1")
+
+    def test_zero_row_completion_is_reported_as_cancelled(self):
+        supabase = FakeSupabase(
+            table_responses={
+                "match_results": [SimpleNamespace(data=[])],
+            }
+        )
+
+        with self.assertRaises(AnalysisTaskCancelled):
+            SupabaseAnalysisQueue(supabase).complete("match-1", analysis(), 78.25)
+
+    def test_zero_row_failure_update_is_reported_as_cancelled(self):
+        supabase = FakeSupabase(
+            table_responses={
+                "match_results": [SimpleNamespace(data=[])],
+            }
+        )
+
+        with self.assertRaises(AnalysisTaskCancelled):
+            SupabaseAnalysisQueue(supabase).fail("match-1", "Analysis failed.")
 
     def test_stale_processing_tasks_are_failed_after_three_minutes(self):
         supabase = FakeSupabase(
