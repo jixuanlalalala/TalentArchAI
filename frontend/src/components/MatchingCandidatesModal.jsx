@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useMemo, useState } from 'react';
 import { Bot, X } from 'lucide-react';
 
 export default function MatchingCandidatesModal({
@@ -13,6 +14,15 @@ export default function MatchingCandidatesModal({
   isAdding = false,
   error = ''
 }) {
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState(
+    () => new Set(matchingCandidates.map((candidate) => candidate.id).filter(Boolean))
+  );
+
+  const selectedCandidates = useMemo(
+    () => matchingCandidates.filter((candidate) => selectedCandidateIds.has(candidate.id)),
+    [matchingCandidates, selectedCandidateIds]
+  );
+
   if (!isOpen) return null;
 
   const avatarColors = [
@@ -29,6 +39,16 @@ export default function MatchingCandidatesModal({
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
     return parts[0].slice(0, 2).toUpperCase();
+  };
+
+  const toggleCandidate = (candidateId) => {
+    if (isAdding) return;
+    setSelectedCandidateIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      if (nextIds.has(candidateId)) nextIds.delete(candidateId);
+      else nextIds.add(candidateId);
+      return nextIds;
+    });
   };
 
   return (
@@ -79,6 +99,14 @@ export default function MatchingCandidatesModal({
                   className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-2xs hover:border-blue-200 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedCandidateIds.has(cand.id)}
+                      onChange={() => toggleCandidate(cand.id)}
+                      disabled={isAdding}
+                      aria-label={`Select ${cand.name || 'candidate'}`}
+                      className="w-4 h-4 shrink-0 accent-[#1D5BF2] cursor-pointer disabled:cursor-not-allowed"
+                    />
                     <div className={`w-9 h-9 rounded-full ${colorClass} font-mono font-bold text-xs flex items-center justify-center shrink-0`}>
                       {getInitials(cand.name)}
                     </div>
@@ -114,11 +142,13 @@ export default function MatchingCandidatesModal({
 
           <button
             type="button"
-            onClick={() => onAddCandidates(matchingCandidates)}
-            disabled={isAdding}
+            onClick={() => onAddCandidates(selectedCandidates)}
+            disabled={isAdding || selectedCandidates.length === 0}
             className="w-1/2 bg-[#1D5BF2] hover:bg-blue-700 text-white text-sm font-bold py-3 px-5 rounded-xl shadow-md shadow-blue-500/10 transition-all cursor-pointer text-center disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isAdding ? 'Adding...' : 'Add Candidates'}
+            {isAdding
+              ? 'Adding...'
+              : `Add ${selectedCandidates.length} Candidate${selectedCandidates.length === 1 ? '' : 's'}`}
           </button>
         </div>
 

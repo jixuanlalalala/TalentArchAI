@@ -993,14 +993,16 @@ export default function JobsTab({
                 />
             ) : null}
 
-            <MatchingCandidatesModal
-                isOpen={showMatchingCandidatesModal}
-                onClose={handleCloseMatchingCandidates}
-                onAddCandidates={handleAddMatchingCandidates}
-                matchingCandidates={matchingCandidates}
-                isAdding={addingRediscoveryCandidates}
-                error={rediscoveryError}
-            />
+            {showMatchingCandidatesModal ? (
+                <MatchingCandidatesModal
+                    isOpen
+                    onClose={handleCloseMatchingCandidates}
+                    onAddCandidates={handleAddMatchingCandidates}
+                    matchingCandidates={matchingCandidates}
+                    isAdding={addingRediscoveryCandidates}
+                    error={rediscoveryError}
+                />
+            ) : null}
 
             <UploadResumesModal
                 isOpen={showUploadModal}

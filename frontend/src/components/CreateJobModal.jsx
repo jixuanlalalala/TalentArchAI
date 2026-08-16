@@ -190,8 +190,8 @@ export default function CreateJobModal({
                       setJobForm(prev => ({ ...prev, salaryMax: numValue }));
                     }}
                     className={`w-full pl-11 pr-3 py-3 bg-slate-50 border rounded-xl outline-none text-sm text-slate-800 placeholder-slate-400 transition-all font-semibold ${
-                      isMaxInvalid 
-                        ? 'border-rose-500 focus:border-rose-600 focus:ring-1 focus:ring-rose-500 text-rose-600' 
+                      isMaxInvalid
+                        ? 'border-rose-500 focus:border-rose-600 focus:ring-1 focus:ring-rose-500 text-rose-600'
                         : 'border-slate-200/80 focus:border-[#1D5BF2]'
                     }`}
                   />
@@ -377,10 +377,10 @@ export default function CreateJobModal({
               className="flex w-full items-center justify-between gap-3 p-3 text-left cursor-pointer"
             >
               <div>
-                <p className="text-xs font-bold text-slate-700">
+                <p className="text-sm font-bold text-slate-700">
                   Customize Matching Priorities (Optional)
                 </p>
-                <p className="mt-1 text-[10px] font-medium text-slate-400">
+                <p className="mt-1 text-[12px] font-medium text-slate-400">
                   {MATCHING_PRIORITY_FIELDS.map(
                     ({ key, label }) => `${label} ${matchingPriorities[key]}%`
                   ).join(' · ')}
@@ -400,7 +400,7 @@ export default function CreateJobModal({
                 className="border-t border-slate-100 p-3"
               >
                 <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2">
-                  <p className="text-[10px] font-semibold leading-relaxed text-slate-500">
+                  <p className="text-[11px] font-semibold leading-relaxed text-slate-500">
                     {prioritiesCustomized
                       ? 'Using your relative-importance selections.'
                       : 'Using default priorities: Hard Skills 45% · Work Experience 30% · Education 15% · Soft Skills 10%. Change any importance level to customize.'}
@@ -417,7 +417,7 @@ export default function CreateJobModal({
                         {label} importance
                       </legend>
                       <div className="mb-2 flex items-center justify-between gap-3">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <span className="text-[12px] font-bold uppercase tracking-wider text-slate-500">
                           {label}
                         </span>
                         <span className="text-xs font-bold text-[#1D5BF2]">
@@ -440,7 +440,7 @@ export default function CreateJobModal({
                             />
                             <label
                               htmlFor={`matching-priority-${key}-${level.value}`}
-                              className={`flex min-h-8 items-center justify-center gap-1 rounded-md border px-1.5 py-1.5 text-[10px] font-bold transition-all cursor-pointer peer-focus-visible:ring-2 peer-focus-visible:ring-[#1D5BF2]/40 peer-focus-visible:ring-offset-1 ${
+                              className={`flex min-h-8 items-center justify-center gap-1 rounded-md border px-1.5 py-1.5 text-[12px] font-bold transition-all cursor-pointer peer-focus-visible:ring-2 peer-focus-visible:ring-[#1D5BF2]/40 peer-focus-visible:ring-offset-1 ${
                                 importanceSelections[key] === level.value
                                   ? 'border-[#1D5BF2] bg-[#1D5BF2] text-white shadow-sm'
                                   : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:bg-slate-100'
@@ -460,7 +460,7 @@ export default function CreateJobModal({
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   <div aria-live="polite">
-                    <p className={`text-[11px] font-bold ${
+                    <p className={`text-[12px] font-bold ${
                       prioritiesAreValid ? 'text-emerald-600' : 'text-rose-600'
                     }`}>
                       Total: {priorityTotal}%
@@ -476,7 +476,7 @@ export default function CreateJobModal({
                         matchingPriorities: createDefaultMatchingPriorities(),
                       }));
                     }}
-                    className="flex items-center gap-1.5 text-[10px] font-bold text-[#1D5BF2] hover:text-blue-700 cursor-pointer"
+                    className="flex items-center gap-1.5 text-[12px] font-bold text-[#1D5BF2] hover:text-blue-700 cursor-pointer"
                   >
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                     Reset to Defaults

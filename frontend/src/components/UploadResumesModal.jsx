@@ -77,7 +77,10 @@ export default function UploadResumesModal({
     };
 
     const handleClose = () => {
-        if (isSubmitting) return;
+        if (isSubmitting) {
+            onClose();
+            return;
+        }
         setSelectedFiles([]);
         setValidationErrors([]);
         setResults([]);
@@ -130,8 +133,7 @@ export default function UploadResumesModal({
                     <button
                         type="button"
                         onClick={handleClose}
-                        disabled={isSubmitting}
-                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                         aria-label="Close resume upload"
                     >
                         <X className="w-5 h-5" />
@@ -210,7 +212,8 @@ export default function UploadResumesModal({
                             className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold text-[#1D5BF2]"
                         >
                             Uploading resumes and extracting candidate
-                            information. Please wait...
+                            information. You may close this window while processing
+                            continues.
                         </div>
                     ) : null}
 
@@ -243,10 +246,9 @@ export default function UploadResumesModal({
                         <button
                             type="button"
                             onClick={handleClose}
-                            disabled={isSubmitting}
-                            className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold px-5 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold px-5 py-2.5 rounded-xl transition-all cursor-pointer"
                         >
-                            Cancel
+                            {isSubmitting ? 'Close' : 'Cancel'}
                         </button>
                         <button
                             type="button"
