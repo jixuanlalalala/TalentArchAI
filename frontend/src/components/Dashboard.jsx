@@ -2,23 +2,33 @@ import {useState} from 'react';
 import { 
   Users, Briefcase, BarChart3, User, LogOut
 } from 'lucide-react';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {useAuth} from '../context/AuthContext';         
 import JobsTab from './JobsTab';
 import CandidatesTab from './CandidatesTab';
 import ReportsTab from './ReportsTab';
 import ProfileTab from './ProfileTab';
-import { testFlaskConnection } from '../services/api';
 
 export default function Dashboard() {
 
     const [activeTab, setActiveTab] = useState('jobs');
     const [selectedReportJobId, setSelectedReportJobId] = useState(null);
-    const [testMessage, setTestMessage] = useState('');
-    const [testError, setTestError] = useState('');
     const { signOut } = useAuth();
 
     const navigate = useNavigate();
+    const [, setSearchParams] = useSearchParams();
+
+    const handleJobsNavigation = () => {
+        setSearchParams(
+            (currentParams) => {
+                const nextParams = new URLSearchParams(currentParams);
+                nextParams.delete('job');
+                return nextParams;
+            },
+            { replace: true }
+        );
+        setActiveTab('jobs');
+    };
 
     const handleSignOut = async () => {
         const { error } = await signOut();
@@ -26,18 +36,6 @@ export default function Dashboard() {
             console.error('Error signing out:', error.message);
         } else {
             navigate('/login');
-        }
-    };
-
-    const handleTestConnection = async () => {
-        setTestMessage('Testing Flask connection...');
-        setTestError('');
-
-        try {
-            const result = await testFlaskConnection();
-            setTestMessage(`Success: ${JSON.stringify(result)}`);
-        } catch (error) {
-            setTestError(error.message || 'Connection failed');
         }
     };
 
@@ -58,7 +56,7 @@ export default function Dashboard() {
                     <nav className='space-y-1.5'>
                         <button
                             id='nav-jobs'
-                            onClick={() => { setActiveTab('jobs');}}
+                            onClick={handleJobsNavigation}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                                 activeTab === 'jobs'
                                     ? 'bg-white text-[#1D5BF2] shadow-sm shadow-slate-200/50'
@@ -145,20 +143,15 @@ export default function Dashboard() {
 
                 {/** Main Content Canvas */}
                 <main className="flex-1 min-h-0 p-8 overflow-y-auto">
-                    {(testMessage || testError) && (
-                        <div className="m-6 rounded-xl border p-4 text-sm">
-                            {testMessage && <p className="text-emerald-700">{testMessage}</p>}
-                            {testError && <p className="text-rose-600">{testError}</p>}
-                        </div>
-                    )}
-                    {activeTab === 'jobs' && (
+                    <div hidden={activeTab !== 'jobs'}>
                         <JobsTab
+                            onNavigateToJobList={handleJobsNavigation}
                             onViewReport={(jobId) => {
                                 setSelectedReportJobId(jobId || null);
                                 setActiveTab('reports');
                             }}
                         />
-                    )}
+                    </div>
 
                     {activeTab === 'candidates' && (
                         <CandidatesTab />

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 
 const AUTO_DISMISS_MS = 6000;
@@ -102,7 +103,7 @@ function ToastCard({ notification, onDismiss }) {
 export default function ToastContainer({ notifications = [], onDismiss }) {
     if (notifications.length === 0) return null;
 
-    return (
+    return createPortal(
         <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3">
             {notifications.map((notification) => (
                 <ToastCard
@@ -111,6 +112,7 @@ export default function ToastContainer({ notifications = [], onDismiss }) {
                     onDismiss={onDismiss}
                 />
             ))}
-        </div>
+        </div>,
+        document.body
     );
 }

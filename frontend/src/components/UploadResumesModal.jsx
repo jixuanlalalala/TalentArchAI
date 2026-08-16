@@ -42,6 +42,7 @@ export default function UploadResumesModal({
     onClose,
     jobId,
     onUploadComplete,
+    onUploadFailure,
 }) {
     const inputRef = useRef(null);
     const [selectedFiles, setSelectedFiles] = useState([]);
@@ -108,9 +109,10 @@ export default function UploadResumesModal({
                 setSelectedFiles([]);
                 setValidationErrors([]);
                 setResults([]);
-                onUploadComplete?.(uploadResults);
+                onUploadComplete?.(uploadResults, jobId);
             } else {
                 setResults(uploadResults);
+                onUploadFailure?.(jobId);
             }
         } catch (error) {
             if (Array.isArray(error.payload?.results) && error.payload.results.length) {
@@ -120,6 +122,7 @@ export default function UploadResumesModal({
                     error.message || 'The resumes could not be uploaded.',
                 ]);
             }
+            onUploadFailure?.(jobId);
         } finally {
             setIsSubmitting(false);
         }
