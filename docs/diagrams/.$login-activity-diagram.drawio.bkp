@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-08-13T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="login-activity" name="Login Activity Diagram">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="lane-user" value="User" style="swimlane;horizontal=1;startSize=36;collapsible=0;container=1;recursiveResize=0;html=1;whiteSpace=wrap;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontStyle=1;rounded=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="280" height="1030" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-system" value="TalentArch AI System" style="swimlane;horizontal=1;startSize=36;collapsible=0;container=1;recursiveResize=0;html=1;whiteSpace=wrap;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontStyle=1;rounded=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="300" y="20" width="300" height="1030" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-auth" value="Supabase Authentication" style="swimlane;horizontal=1;startSize=36;collapsible=0;container=1;recursiveResize=0;html=1;whiteSpace=wrap;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontStyle=1;rounded=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="600" y="20" width="280" height="1030" as="geometry" />
+        </mxCell>
+
+        <mxCell id="initial" value="" style="ellipse;html=1;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="148" y="72" width="24" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="enter-credentials" value="Enter email and password" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="65" y="125" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="submit-login" value="Select Sign In" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="65" y="215" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="validate-input" value="Validate login details" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="355" y="215" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="input-decision" value="" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="425" y="305" width="50" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="validation-error" value="Display validation errors" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="355" y="390" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="request-auth" value="Request authentication" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="355" y="490" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="verify-credentials" value="Verify credentials" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="645" y="490" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="auth-decision" value="" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="715" y="580" width="50" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="auth-error" value="Display sign-in error" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="355" y="650" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="failure-merge" value="" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="135" y="725" width="50" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="retry" value="Correct login details" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="65" y="810" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="create-session" value="Establish authenticated session" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="645" y="680" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="update-user" value="Update signed-in user state" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="355" y="790" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="open-dashboard" value="Open protected dashboard" style="rounded=1;arcSize=16;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="355" y="900" width="190" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="final" value="" style="ellipse;shape=doubleEllipse;html=1;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="435" y="985" width="30" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="initial" target="enter-credentials"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="enter-credentials" target="submit-login"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="submit-login" target="validate-input"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="validate-input" target="input-decision"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" value="[Invalid input]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="input-decision" target="validation-error"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" value="[Valid input]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="input-decision" target="request-auth"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="request-auth" target="verify-credentials"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="verify-credentials" target="auth-decision"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e9" value="[Rejected or error]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="auth-decision" target="auth-error"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e10" value="[Authenticated]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="auth-decision" target="create-session"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="validation-error" target="failure-merge"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="320" y="417" /><mxPoint x="320" y="750" /></Array></mxGeometry></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="auth-error" target="failure-merge"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="failure-merge" target="retry"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="retry" target="enter-credentials"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="45" y="837" /><mxPoint x="45" y="152" /></Array></mxGeometry></mxCell>
+        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="create-session" target="update-user"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="update-user" target="open-dashboard"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" edge="1" parent="1" source="open-dashboard" target="final"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
