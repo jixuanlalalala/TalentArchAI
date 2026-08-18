@@ -1,0 +1,100 @@
+import { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../services/supabaseClient';
+
+const AuthContext = createContext({});
+
+// Keeping this hook beside its provider avoids changing the existing project structure.
+// eslint-disable-next-line react-refresh/only-export-components
+export const useAuth = () => {
+    return useContext(AuthContext);
+};
+
+export const AuthProvider = ({ children }) => {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const getInitialSession = async () => {
+            try {
+                const {
+                    data: {session},
+                    error,
+                } = await supabase.auth.getSession();
+
+                if (error) {
+                    setUser(null);
+                    return;
+                }
+
+                setUser(session?.user ?? null);
+            } catch {
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        getInitialSession();
+
+        const {
+            data: {subscription}
+        } = supabase.auth.onAuthStateChange((_, session) => {
+            setUser(session?.user ?? null);
+            setLoading(false);
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, []);
+
+    //sign up process
+    const signUp = async (email, password, fullName) => {
+        const { data, error} = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+        return { data, error };
+    }
+
+    //sign in/login process
+    const signIn = async (email, password) => {
+        const {data,error } = await supabase.auth.signInWithPassword({email, password});
+        return {data, error};
+    };
+
+    //sign out/log out process
+    const signOut = async () => {
+        const { error } = await supabase.auth.signOut();
+        return { error };
+    };
+
+    const clearLocalSession = async () => {
+        const { error } = await supabase.auth.signOut({ scope: 'local' });
+        if (!error) {
+            setUser(null);
+        }
+        return { error };
+    };
+
+    //forgot password
+    const forgotPassword = async email => {
+        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/reset-password`, // Adjust this URL to your reset password page
+        });
+        return { data, error };
+    }
+
+    const value = {
+        user,
+        loading,
+        signUp,
+        signIn,
+        signOut,
+        clearLocalSession,
+        forgotPassword,
+    };
+
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
