@@ -41,6 +41,7 @@ export default function UploadResumesModal({
     isOpen,
     onClose,
     jobId,
+    onUploadStarted,
     onUploadComplete,
     onUploadFailure,
 }) {
@@ -102,13 +103,24 @@ export default function UploadResumesModal({
         setIsSubmitting(true);
         setValidationErrors([]);
         setResults([]);
+        onUploadStarted?.({
+            jobId,
+            fileCount: selectedFiles.length,
+        });
         try {
             const response = await uploadResumes(jobId, selectedFiles);
             const uploadResults = response.results || [];
             if (uploadResults.some((result) => result.status === 'completed')) {
-                setSelectedFiles([]);
+                const failedFiles = selectedFiles.filter(
+                    (_file, index) =>
+                        uploadResults[index]?.status !== 'completed'
+                );
+                const failedResults = uploadResults.filter(
+                    (result) => result.status !== 'completed'
+                );
+                setSelectedFiles(failedFiles);
                 setValidationErrors([]);
-                setResults([]);
+                setResults(failedResults);
                 onUploadComplete?.(uploadResults, jobId);
             } else {
                 setResults(uploadResults);

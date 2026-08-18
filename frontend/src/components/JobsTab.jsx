@@ -41,6 +41,7 @@ const createInitialJobForm = () => ({
 });
 
 export default function JobsTab({
+    isActive,
     onNavigateToJobList,
     onViewReport,
 }) {
@@ -83,6 +84,7 @@ export default function JobsTab({
     }, []);
 
     const jobAnalysis = useJobAnalysisWorkflow({
+        isPageActive: isActive,
         selectedJobId,
         selectedJobTitle: selectedJob?.title,
         onCandidateCountChange: updateCandidateCount,
@@ -298,6 +300,11 @@ export default function JobsTab({
                     onUpload={openUploadModal}
                     onBack={handleBackToList}
                     onViewReport={onViewReport}
+                    upload={{
+                        isProcessing:
+                            jobAnalysis.upload.isProcessingSelectedJob,
+                        fileCount: jobAnalysis.upload.fileCount,
+                    }}
                     analysis={{
                         pendingCount,
                         processingCount,
@@ -343,6 +350,7 @@ export default function JobsTab({
                 isOpen={jobAnalysis.upload.isOpen}
                 onClose={jobAnalysis.upload.close}
                 jobId={selectedJobId}
+                onUploadStarted={jobAnalysis.upload.handleStarted}
                 onUploadComplete={jobAnalysis.upload.handleComplete}
                 onUploadFailure={jobAnalysis.upload.handleFailure}
             />

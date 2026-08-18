@@ -22,6 +22,7 @@ export default function JobDetailsView({
     onUpload,
     onBack,
     onViewReport,
+    upload,
     analysis,
 }) {
     const candidateResultsRef = useRef(null);
@@ -86,6 +87,27 @@ export default function JobDetailsView({
                 isLoading={isLoadingCandidates}
                 error={candidateError}
             />
+
+            {upload.isProcessing ? (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 flex items-start gap-3"
+                >
+                    <LoaderCircle className="w-5 h-5 text-[#1D5BF2] shrink-0 mt-0.5 animate-spin" />
+                    <div>
+                        <p className="text-sm font-extrabold text-slate-900">
+                            Uploading and extracting {upload.fileCount} resume
+                            {upload.fileCount === 1 ? '' : 's'}...
+                        </p>
+                        <p className="text-xs font-medium text-slate-500 mt-1">
+                            Candidate profiles will appear here automatically as
+                            extraction completes. Job-specific AI analysis runs
+                            in the background.
+                        </p>
+                    </div>
+                </div>
+            ) : null}
 
             {analysis.isActive ? (
                 <div

@@ -3,7 +3,6 @@ import {
   Check,
   Download,
   FileText,
-  SlidersHorizontal,
   Users,
 } from 'lucide-react';
 import { getJobCandidates } from '../services/candidateService';
@@ -325,20 +324,23 @@ export default function ReportsTab({ initialJobId = null }) {
       <div className="lg:col-span-8 space-y-6">
 
         {/** Header Card */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col xl:flex-row xl:flex-wrap items-start xl:items-center justify-between gap-4">
+          <div className="min-w-0">
             <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase block">
               Report Focus
             </span>
-            <h3 className="text-xl font-extrabold text-slate-900 mt-0.5" id="report-focus-title">
+            <h3 className="text-xl font-extrabold text-slate-900 mt-0.5 break-words" id="report-focus-title">
               Candidate Comparison: {selectedJob?.title || 'No Job Selected'}
             </h3>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto self-stretch md:self-auto">
-            <div className="flex items-center gap-1.5 border border-slate-200 bg-slate-50 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 shrink-0">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
-              <span>Match Score (Highest)</span>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full xl:w-auto self-stretch xl:self-auto">
+            <div
+              className="flex items-center gap-1.5 text-xs font-semibold min-w-0"
+              aria-label="Report ranking order"
+            >
+              <span className="text-slate-400 shrink-0">Sorted by:</span>
+              <span className="text-slate-600">Match Score (Highest)</span>
             </div>
 
             <button
@@ -346,7 +348,7 @@ export default function ReportsTab({ initialJobId = null }) {
               type="button"
               onClick={handleDownload}
               disabled={!selectedJob || downloading}
-              className="flex-1 md:flex-initial flex items-center justify-center gap-2 bg-[#1D5BF2] hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-blue-500/10 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 bg-[#1D5BF2] hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-blue-500/10 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Download className="w-4 h-4 shrink-0" />
               <span>{downloading ? 'Generating...' : 'Download Report'}</span>

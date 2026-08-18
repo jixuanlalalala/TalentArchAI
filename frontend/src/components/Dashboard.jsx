@@ -145,6 +145,7 @@ export default function Dashboard() {
                 <main className="flex-1 min-h-0 p-8 overflow-y-auto">
                     <div hidden={activeTab !== 'jobs'}>
                         <JobsTab
+                            isActive={activeTab === 'jobs'}
                             onNavigateToJobList={handleJobsNavigation}
                             onViewReport={(jobId) => {
                                 setSelectedReportJobId(jobId || null);

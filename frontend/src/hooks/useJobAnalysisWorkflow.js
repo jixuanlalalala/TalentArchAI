@@ -7,6 +7,7 @@ import {
 
 const POLLING_INTERVAL_MS = 5000;
 const NEWLY_COMPLETED_HIGHLIGHT_MS = 4000;
+const EXTRACTION_NOTICE_THROTTLE_MS = 6000;
 
 const buildAnalysisToast = (transitions, jobTitle) => {
     const completed = transitions.newlyCompletedCandidates;
@@ -60,6 +61,7 @@ const buildAnalysisToast = (transitions, jobTitle) => {
 };
 
 export default function useJobAnalysisWorkflow({
+    isPageActive,
     selectedJobId,
     selectedJobTitle,
     onCandidateCountChange,
@@ -74,6 +76,7 @@ export default function useJobAnalysisWorkflow({
     );
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [uploadSuccessMessage, setUploadSuccessMessage] = useState('');
+    const [activeUpload, setActiveUpload] = useState(null);
 
     const previousCandidateStatusesRef = useRef(new Map());
     const previousHadActiveAnalysisRef = useRef(false);
@@ -82,10 +85,17 @@ export default function useJobAnalysisWorkflow({
     const highlightTimeoutsRef = useRef(new Map());
     const skipCandidateLoadJobIdRef = useRef(null);
     const selectedJobTitleRef = useRef(selectedJobTitle);
+    const selectedJobIdRef = useRef(selectedJobId);
+    const isPageActiveRef = useRef(isPageActive);
+    const lastExtractionNoticeAtRef = useRef(0);
+    const activeUploadJobIdRef = useRef(null);
+    const deferredCompletionJobIdRef = useRef(null);
 
     useEffect(() => {
         selectedJobTitleRef.current = selectedJobTitle;
-    }, [selectedJobTitle]);
+        selectedJobIdRef.current = selectedJobId;
+        isPageActiveRef.current = isPageActive;
+    }, [isPageActive, selectedJobId, selectedJobTitle]);
 
     const statistics = useMemo(
         () => calculateJobCandidateStatistics(candidates),
@@ -95,6 +105,8 @@ export default function useJobAnalysisWorkflow({
     const processingCount = statistics.processingCount;
     const activeAnalysisCount = pendingCount + processingCount;
     const hasActiveAnalysis = activeAnalysisCount > 0;
+    const isUploadingSelectedJob =
+        activeUpload?.jobId === selectedJobId;
 
     const dismissNotification = useCallback((notificationId) => {
         setNotifications((currentNotifications) =>
@@ -123,6 +135,7 @@ export default function useJobAnalysisWorkflow({
                 analysisJobIdRef.current = jobId;
                 previousCandidateStatusesRef.current = new Map();
                 previousHadActiveAnalysisRef.current = false;
+                deferredCompletionJobIdRef.current = null;
                 setNotifications([]);
             }
 
@@ -150,6 +163,22 @@ export default function useJobAnalysisWorkflow({
                 previousHadActiveAnalysisRef.current &&
                 transitions.newlySettledCount > 0
             ) {
+                if (activeUploadJobIdRef.current === jobId) {
+                    deferredCompletionJobIdRef.current = jobId;
+                    setCompletionSummary(null);
+                } else {
+                    deferredCompletionJobIdRef.current = null;
+                    setCompletionSummary({
+                        completedCount: nextStatistics.completedCount,
+                        failedCount: nextStatistics.failedCount,
+                    });
+                    setUploadSuccessMessage('');
+                }
+            } else if (
+                deferredCompletionJobIdRef.current === jobId &&
+                activeUploadJobIdRef.current !== jobId
+            ) {
+                deferredCompletionJobIdRef.current = null;
                 setCompletionSummary({
                     completedCount: nextStatistics.completedCount,
                     failedCount: nextStatistics.failedCount,
@@ -195,6 +224,7 @@ export default function useJobAnalysisWorkflow({
         analysisJobIdRef.current = jobId;
         previousCandidateStatusesRef.current = new Map();
         previousHadActiveAnalysisRef.current = false;
+        deferredCompletionJobIdRef.current = null;
         setCompletionSummary(null);
         setNotifications([]);
         setHighlightedCandidateIds(new Set());
@@ -315,7 +345,12 @@ export default function useJobAnalysisWorkflow({
     }, [applyCandidates, selectedJobId]);
 
     useEffect(() => {
-        if (!selectedJobId || !hasActiveAnalysis) return undefined;
+        if (
+            !selectedJobId ||
+            (!hasActiveAnalysis && !isUploadingSelectedJob)
+        ) {
+            return undefined;
+        }
 
         let cancelled = false;
         let requestInFlight = false;
@@ -356,24 +391,64 @@ export default function useJobAnalysisWorkflow({
                 handleVisibilityChange
             );
         };
-    }, [applyCandidates, hasActiveAnalysis, selectedJobId]);
+    }, [
+        applyCandidates,
+        hasActiveAnalysis,
+        isUploadingSelectedJob,
+        selectedJobId,
+    ]);
 
     const openUpload = useCallback(() => {
+        if (activeUpload) {
+            const now = Date.now();
+            if (
+                now - lastExtractionNoticeAtRef.current >=
+                EXTRACTION_NOTICE_THROTTLE_MS
+            ) {
+                lastExtractionNoticeAtRef.current = now;
+                enqueueNotification(activeUpload.jobId || 'resume-upload', {
+                    type: 'info',
+                    title: 'Resume extraction in progress',
+                    message:
+                        'Please wait until the current resumes finish extracting before starting another upload.',
+                });
+            }
+            return;
+        }
         setUploadSuccessMessage('');
         setIsUploadOpen(true);
-    }, []);
+    }, [activeUpload, enqueueNotification]);
 
     const closeUpload = useCallback(() => setIsUploadOpen(false), []);
+
+    const handleUploadStarted = useCallback(({ jobId, fileCount }) => {
+        lastExtractionNoticeAtRef.current = 0;
+        activeUploadJobIdRef.current = jobId;
+        deferredCompletionJobIdRef.current = null;
+        setCompletionSummary(null);
+        setUploadSuccessMessage('');
+        setActiveUpload({
+            jobId,
+            fileCount,
+        });
+        setIsUploadOpen(false);
+    }, []);
 
     const handleUploadComplete = useCallback(
         async (uploadResults, uploadedJobId) => {
             setIsUploadOpen(false);
+            if (activeUploadJobIdRef.current === uploadedJobId) {
+                activeUploadJobIdRef.current = null;
+            }
+            setActiveUpload((currentUpload) =>
+                currentUpload?.jobId === uploadedJobId ? null : currentUpload
+            );
             const completedCount = uploadResults.filter(
                 (result) => result.status === 'completed'
             ).length;
             const failedCount = uploadResults.length - completedCount;
             const uploadMessage = failedCount
-                ? `${completedCount} resume${completedCount === 1 ? '' : 's'} uploaded successfully and ${failedCount} could not be processed.`
+                ? `${completedCount} resume${completedCount === 1 ? '' : 's'} uploaded successfully and ${failedCount} could not be processed. Open Upload Resume to review and retry failed files.`
                 : 'Resumes uploaded successfully. AI analysis will continue in the background.';
 
             enqueueNotification(uploadedJobId || 'resume-upload', {
@@ -384,17 +459,32 @@ export default function useJobAnalysisWorkflow({
                 message: uploadMessage,
             });
 
-            if (uploadedJobId === selectedJobId) {
+            if (uploadedJobId === selectedJobIdRef.current) {
                 setUploadSuccessMessage(uploadMessage);
-                await refreshCandidates();
+                await loadCandidates(
+                    uploadedJobId,
+                    'Resumes were extracted, but the candidate list could not refresh.'
+                );
             }
         },
-        [enqueueNotification, refreshCandidates, selectedJobId]
+        [enqueueNotification, loadCandidates]
     );
 
     const handleUploadFailure = useCallback(
         (uploadedJobId) => {
             setUploadSuccessMessage('');
+            if (activeUploadJobIdRef.current === uploadedJobId) {
+                activeUploadJobIdRef.current = null;
+            }
+            setActiveUpload((currentUpload) =>
+                currentUpload?.jobId === uploadedJobId ? null : currentUpload
+            );
+            if (
+                isPageActiveRef.current &&
+                uploadedJobId === selectedJobIdRef.current
+            ) {
+                setIsUploadOpen(true);
+            }
             enqueueNotification(uploadedJobId || 'resume-upload', {
                 type: 'error',
                 title: 'Resume Processing Failed',
@@ -434,8 +524,11 @@ export default function useJobAnalysisWorkflow({
         upload: {
             isOpen: isUploadOpen,
             successMessage: uploadSuccessMessage,
+            isProcessingSelectedJob: isUploadingSelectedJob,
+            fileCount: activeUpload?.fileCount || 0,
             open: openUpload,
             close: closeUpload,
+            handleStarted: handleUploadStarted,
             handleComplete: handleUploadComplete,
             handleFailure: handleUploadFailure,
         },
