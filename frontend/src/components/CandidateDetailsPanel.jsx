@@ -85,13 +85,17 @@ export default function CandidateDetailsPanel({
     isOpeningResume = false,
     isDeletingCandidate = false,
 }) {
-    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [confirmationAction, setConfirmationAction] = useState(null);
+    const isUnlinkConfirmation = confirmationAction === 'unlink';
+    const isConfirmationPending = isUnlinkConfirmation
+        ? isActionPending
+        : isDeletingCandidate;
 
     useEffect(() => {
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
-                if (showDeleteConfirmation) {
-                    if (!isDeletingCandidate) setShowDeleteConfirmation(false);
+                if (confirmationAction) {
+                    if (!isConfirmationPending) setConfirmationAction(null);
                 } else {
                     onClose();
                 }
@@ -100,7 +104,7 @@ export default function CandidateDetailsPanel({
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [isDeletingCandidate, onClose, showDeleteConfirmation]);
+    }, [confirmationAction, isConfirmationPending, onClose]);
 
     if (!candidate) return null;
 
@@ -124,9 +128,13 @@ export default function CandidateDetailsPanel({
         onRecruitmentStatusChange || onRetryAnalysis || onUnlink
     );
 
-    const handleConfirmedDelete = async () => {
-        const deleted = await onDeleteCandidate?.();
-        if (deleted === false) setShowDeleteConfirmation(false);
+    const handleConfirmedAction = async () => {
+        if (isUnlinkConfirmation) {
+            await onUnlink?.();
+        } else {
+            await onDeleteCandidate?.();
+        }
+        setConfirmationAction(null);
     };
 
     return (
@@ -547,7 +555,7 @@ export default function CandidateDetailsPanel({
                             <button
                                 type="button"
                                 disabled={isActionPending}
-                                onClick={onUnlink}
+                                onClick={() => setConfirmationAction('unlink')}
                                 className="flex items-center gap-2 border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 text-sm font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -567,7 +575,7 @@ export default function CandidateDetailsPanel({
                         <div className="flex justify-end pt-4 border-t border-slate-100">
                             <button
                                 type="button"
-                                onClick={() => setShowDeleteConfirmation(true)}
+                                onClick={() => setConfirmationAction('delete')}
                                 disabled={isDeletingCandidate}
                                 className="flex items-center gap-2 border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 text-sm font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             >
@@ -579,60 +587,77 @@ export default function CandidateDetailsPanel({
                 </div>
             </aside>
 
-            {showDeleteConfirmation ? (
+            {confirmationAction ? (
                 <div
                     className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center px-4"
                     onMouseDown={(event) => {
                         if (
                             event.target === event.currentTarget &&
-                            !isDeletingCandidate
+                            !isConfirmationPending
                         ) {
-                            setShowDeleteConfirmation(false);
+                            setConfirmationAction(null);
                         }
                     }}
                 >
                     <div
                         role="alertdialog"
                         aria-modal="true"
-                        aria-labelledby="delete-candidate-title"
-                        aria-describedby="delete-candidate-description"
+                        aria-labelledby="candidate-confirmation-title"
+                        aria-describedby="candidate-confirmation-description"
                         className="w-full max-w-md bg-white rounded-2xl border border-slate-100 shadow-2xl p-6"
                         onMouseDown={(event) => event.stopPropagation()}
                     >
                         <h3
-                            id="delete-candidate-title"
+                            id="candidate-confirmation-title"
                             className="text-lg font-extrabold text-slate-900"
                         >
-                            Delete Candidate?
+                            {isUnlinkConfirmation
+                                ? 'Remove Candidate from Job?'
+                                : 'Delete Candidate?'}
                         </h3>
                         <p
-                            id="delete-candidate-description"
+                            id="candidate-confirmation-description"
                             className="text-sm text-slate-500 leading-6 mt-3"
                         >
-                            This will permanently remove the candidate, their
-                            resume, and all associated job analysis results.
-                            This action cannot be undone.
+                            {isUnlinkConfirmation ? (
+                                <>
+                                    This will remove the candidate and their
+                                    analysis results from this job. The candidate
+                                    and resume will remain available in the
+                                    Candidate Database.
+                                </>
+                            ) : (
+                                <>
+                                    This will permanently remove the candidate,
+                                    their resume, and all associated job analysis
+                                    results. This action cannot be undone.
+                                </>
+                            )}
                         </p>
                         <div className="flex items-center justify-end gap-3 mt-6">
                             <button
                                 type="button"
-                                onClick={() => setShowDeleteConfirmation(false)}
-                                disabled={isDeletingCandidate}
+                                onClick={() => setConfirmationAction(null)}
+                                disabled={isConfirmationPending}
                                 className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="button"
-                                onClick={handleConfirmedDelete}
-                                disabled={isDeletingCandidate}
+                                onClick={handleConfirmedAction}
+                                disabled={isConfirmationPending}
                                 className="flex items-center gap-2 border border-rose-600 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <Trash2 className="w-4 h-4" />
                                 <span>
-                                    {isDeletingCandidate
-                                        ? 'Deleting...'
-                                        : 'Delete Candidate'}
+                                    {isConfirmationPending
+                                        ? isUnlinkConfirmation
+                                            ? 'Removing...'
+                                            : 'Deleting...'
+                                        : isUnlinkConfirmation
+                                          ? 'Remove from Job'
+                                          : 'Delete Candidate'}
                                 </span>
                             </button>
                         </div>

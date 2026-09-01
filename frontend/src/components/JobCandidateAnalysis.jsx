@@ -127,21 +127,18 @@ export default function JobCandidateAnalysis({
     };
 
     const handleUnlinkCandidate = async (candidate) => {
-        const confirmed = window.confirm(
-            'Remove this candidate from the selected job? The candidate and resume will remain in the Candidate Database.'
-        );
-        if (!confirmed) return;
-
         setActionCandidateId(candidate.id);
         setActionError('');
         try {
             await unlinkCandidateFromJob(jobId, candidate.id);
             closeDetails();
             await refreshCandidates();
+            return true;
         } catch (error) {
             setActionError(
                 error.message || 'Could not remove the candidate from this job.'
             );
+            return false;
         } finally {
             setActionCandidateId(null);
         }
