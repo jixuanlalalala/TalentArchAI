@@ -29,6 +29,10 @@ def extract_candidate_information(
     payload = {
         "model": model,
         "temperature": 0,
+        "provider": {
+            "order": ["darkbloom"],
+            "allow_fallbacks": False,
+        },
         "messages": [
             {"role": "system", "content": CANDIDATE_EXTRACTION_SYSTEM_PROMPT},
             {
