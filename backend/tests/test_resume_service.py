@@ -12,7 +12,10 @@ from services.candidate_service import (  # noqa: E402
     CandidateQueueSaveResult,
 )
 from services.resume_file_service import ResumeFileError  # noqa: E402
-from services.resume_service import process_resumes  # noqa: E402
+from services.resume_service import (  # noqa: E402
+    _extraction_interval_seconds,
+    process_resumes,
+)
 from services.resume_storage_service import StoredResume  # noqa: E402
 
 
@@ -30,6 +33,58 @@ def extracted_candidate():
 
 
 class ResumeServiceTests(unittest.TestCase):
+    def test_extraction_interval_defaults_to_ten_seconds(self):
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(_extraction_interval_seconds(), 10.0)
+
+    @patch("services.resume_service.time.sleep")
+    @patch("services.resume_service.persist_candidate_resume_and_queue_matches")
+    @patch("services.resume_service.upload_resume")
+    @patch("services.resume_service.extract_candidate_information")
+    @patch("services.resume_service.extract_resume_text", return_value="Resume text")
+    @patch("services.resume_service.validate_resume_file")
+    def test_multiple_extractions_wait_between_openrouter_requests(
+        self,
+        validate,
+        _extract_text,
+        extract_candidate,
+        upload,
+        persist,
+        sleep,
+    ):
+        validate.side_effect = lambda file: SimpleNamespace(
+            original_filename=file.filename
+        )
+        extract_candidate.return_value = extracted_candidate()
+        upload.side_effect = [
+            StoredResume("resumes", "user/job/first.pdf"),
+            StoredResume("resumes", "user/job/second.pdf"),
+        ]
+        persist.side_effect = [
+            CandidateQueueSaveResult("candidate-1", "match-1", True),
+            CandidateQueueSaveResult("candidate-2", "match-2", True),
+        ]
+
+        with patch.dict(
+            "os.environ",
+            {"OPENROUTER_EXTRACTION_INTERVAL_SECONDS": "12"},
+        ):
+            results = process_resumes(
+                Mock(),
+                "user",
+                "job",
+                [
+                    SimpleNamespace(filename="first.pdf"),
+                    SimpleNamespace(filename="second.pdf"),
+                ],
+            )
+
+        self.assertEqual(
+            [result["status"] for result in results],
+            ["completed"] * 2,
+        )
+        sleep.assert_called_once_with(12.0)
+
     @patch("services.resume_service.persist_candidate_resume_and_queue_matches")
     @patch("services.resume_service.upload_resume")
     @patch("services.resume_service.extract_candidate_information")

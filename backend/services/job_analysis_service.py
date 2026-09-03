@@ -56,8 +56,8 @@ def analyze_candidate_for_job(
         "model": model,
         "temperature": 0,
         "provider": {
-            "order": ["darkbloom"],
-            "allow_fallbacks": False,
+            "order": ["darkbloom", "akashml"],
+            "allow_fallbacks": True,
         },
         "messages": [
             {"role": "system", "content": JOB_ANALYSIS_SYSTEM_PROMPT},

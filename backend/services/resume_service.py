@@ -1,3 +1,6 @@
+import os
+import time
+
 from services.candidate_service import (
     CandidatePersistenceError,
     persist_candidate_resume_and_queue_matches,
@@ -21,6 +24,26 @@ SAFE_PROCESSING_ERRORS = (
     CandidatePersistenceError,
 )
 
+DEFAULT_EXTRACTION_INTERVAL_SECONDS = 10.0
+
+
+def _extraction_interval_seconds() -> float:
+    raw_interval = os.getenv(
+        "OPENROUTER_EXTRACTION_INTERVAL_SECONDS",
+        str(DEFAULT_EXTRACTION_INTERVAL_SECONDS),
+    )
+    try:
+        interval = float(raw_interval)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            "OPENROUTER_EXTRACTION_INTERVAL_SECONDS must be a number."
+        ) from exc
+    if interval <= 0:
+        raise RuntimeError(
+            "OPENROUTER_EXTRACTION_INTERVAL_SECONDS must be greater than zero."
+        )
+    return interval
+
 
 def process_resumes(
     service_supabase,
@@ -29,6 +52,8 @@ def process_resumes(
     files,
 ) -> list[dict]:
     results = []
+    extraction_interval = _extraction_interval_seconds()
+    extraction_attempted = False
 
     for file in files:
         original_filename = (file.filename or "").strip() or "Unnamed file"
@@ -37,6 +62,9 @@ def process_resumes(
         try:
             validated = validate_resume_file(file)
             raw_text = extract_resume_text(validated)
+            if extraction_attempted:
+                time.sleep(extraction_interval)
+            extraction_attempted = True
             extraction = extract_candidate_information(raw_text)
             stored_resume = upload_resume(
                 service_supabase,

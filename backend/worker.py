@@ -8,6 +8,7 @@ from services.supabase_client import create_service_client
 
 
 DEFAULT_POLL_INTERVAL_SECONDS = 5.0
+DEFAULT_ANALYSIS_INTERVAL_SECONDS = 10.0
 
 
 def _poll_interval_seconds() -> float:
@@ -24,10 +25,32 @@ def _poll_interval_seconds() -> float:
     return interval
 
 
+def _analysis_interval_seconds() -> float:
+    raw_interval = os.getenv(
+        "OPENROUTER_ANALYSIS_INTERVAL_SECONDS",
+        str(DEFAULT_ANALYSIS_INTERVAL_SECONDS),
+    )
+    try:
+        interval = float(raw_interval)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            "OPENROUTER_ANALYSIS_INTERVAL_SECONDS must be a number."
+        ) from exc
+    if interval <= 0:
+        raise RuntimeError(
+            "OPENROUTER_ANALYSIS_INTERVAL_SECONDS must be greater than zero."
+        )
+    return interval
+
+
 def run_worker() -> None:
     queue = SupabaseAnalysisQueue(create_service_client())
     poll_interval = _poll_interval_seconds()
-    print("[analysis-worker] started mode=sequential")
+    analysis_interval = _analysis_interval_seconds()
+    print(
+        "[analysis-worker] started mode=sequential "
+        f"request_interval_seconds={analysis_interval:g}"
+    )
 
     while True:
         started_at = time.monotonic()
@@ -54,6 +77,7 @@ def run_worker() -> None:
         if result.failure_category:
             log_line += f" category={result.failure_category}"
         print(log_line)
+        time.sleep(analysis_interval)
 
 
 if __name__ == "__main__":

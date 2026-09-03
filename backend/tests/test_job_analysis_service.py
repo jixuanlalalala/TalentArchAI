@@ -83,6 +83,14 @@ class JobAnalysisServiceTests(unittest.TestCase):
         def inspect_request(request):
             payload = json.loads(request.content)
             self.assertEqual(payload["model"], "analysis-model")
+            self.assertNotIn("max_tokens", payload)
+            self.assertEqual(
+                payload["provider"],
+                {
+                    "order": ["darkbloom", "akashml"],
+                    "allow_fallbacks": True,
+                },
+            )
             serialized_messages = json.dumps(payload["messages"])
             for approved_value in (
                 "BSc Computer Science",

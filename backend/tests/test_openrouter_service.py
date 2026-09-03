@@ -63,6 +63,13 @@ class OpenRouterServiceTests(unittest.TestCase):
         def inspect_request(request):
             payload = json.loads(request.content)
             self.assertNotIn("response_format", payload)
+            self.assertEqual(
+                payload["provider"],
+                {
+                    "order": ["darkbloom", "akashml"],
+                    "allow_fallbacks": True,
+                },
+            )
             return response_with_content(json.dumps(candidate_payload()))
 
         with httpx.Client(transport=httpx.MockTransport(inspect_request)) as client:
