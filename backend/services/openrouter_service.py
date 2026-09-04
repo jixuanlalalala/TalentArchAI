@@ -30,8 +30,8 @@ def extract_candidate_information(
         "model": model,
         "temperature": 0,
         "provider": {
-            "order": ["darkbloom"],
-            "allow_fallbacks": False,
+            "order": ["darkbloom", "akashml"],
+            "allow_fallbacks": True,
         },
         "messages": [
             {"role": "system", "content": CANDIDATE_EXTRACTION_SYSTEM_PROMPT},
