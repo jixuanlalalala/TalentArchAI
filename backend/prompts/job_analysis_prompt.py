@@ -147,32 +147,69 @@ is explicitly present in the candidate's soft_skills.
 Do not infer communication, leadership, teamwork, problem-solving, or other
 soft skills from job titles, education, technical skills, or responsibilities.
 
-WORK EXPERIENCE RELEVANCE GATE
+WORK EXPERIENCE
+Evaluate work experience using explicit responsibility coverage. Do not score
+based only on role title, employer, industry, duration, or employment type.
 
-- Relevant employment type, duration, or industry does not by itself establish
-  relevant work experience.
-- A job title alone must not be used to infer unstated responsibilities.
-- The absence of a minimum-duration requirement only removes a duration penalty.
-  It does not increase responsibility relevance.
-- Fresh-graduate acceptance means internships and projects are eligible forms
-  of experience. It does not mean every internship or project is relevant.
-- A score of 75 or higher requires explicit evidence that most important job
-  responsibilities were performed.
-- If no core job responsibility is explicitly supported, the score must not
-  exceed 39.
-- If the candidate provides only a role title with no relevant responsibilities,
-  assign:
-  - 20-39 for a clearly transferable function;
-  - 1-19 for only weak contextual relevance;
-  - 0 when there is no relevant or transferable evidence.
+First identify the job's distinct responsibility groups. Merge duplicate or
+overlapping responsibilities.
 
-If the job accepts fresh graduates or does not require prior full-time
-employment, assess explicitly stated relevant internship or project experience
-by its responsibilities and relevance. Do not penalize it only because it was
-not full-time employment. Use project experience only when it is explicitly
-included in the supplied structured profile.
+Examples of separate responsibility groups may include:
 
-Do not infer unstated duration, seniority, responsibilities, or outcomes.
+- backend or API development;
+- database design or management;
+- authentication and authorization;
+- external system integration;
+- testing and debugging;
+- deployment or operational support.
+
+Do not count required programming languages, frameworks, databases, or tools as
+separate work-responsibility groups. These are evaluated under Hard Skills.
+
+A different technology stack does not erase a functional responsibility match.
+For example, implementing REST endpoints with Node.js and Express supports the
+backend API development responsibility, although Python and Flask remain Hard
+Skills gaps.
+
+Exception: if the job explicitly requires prior experience using a particular
+technology or specifies years of experience with it, that technology is also
+part of the Work Experience requirement.
+
+For each responsibility group, classify the candidate evidence as:
+
+- Supported: explicit responsibilities directly or equivalently demonstrate it.
+- Partially supported: explicit transferable responsibilities demonstrate only
+  part of it.
+- Missing: no explicit responsibility evidence supports it.
+
+Use these exact scoring anchors:
+
+- 95: At least 90% of responsibility groups are supported, with no major gap.
+- 82: At least 70% are supported.
+- 67: At least 50% are supported.
+- 50: At least 30% are supported.
+- 30: At least one group is supported, but coverage is below 30%, or evidence
+  is mainly partial and transferable.
+- 10: Only minimal transferable responsibility evidence exists.
+- 0: No relevant or transferable responsibility evidence exists.
+
+Return the anchor score exactly. Do not move above or below it.
+
+A score of 75 or higher requires explicit evidence that most distinct
+responsibility groups were performed.
+
+If the candidate provides only a role title without responsibilities, do not
+infer responsibilities from that title.
+
+The absence of a minimum-duration requirement only removes a duration penalty.
+It does not increase responsibility coverage.
+
+If the job accepts fresh graduates, internships and eligible professional
+projects must be assessed by their explicit responsibilities. Do not penalize
+them merely because they were not full-time employment.
+
+Do not infer unstated duration, seniority, responsibilities, technologies, or
+outcomes.
 
 SKILLS OUTPUT
 matched_skills:

@@ -8,7 +8,7 @@ from services.supabase_client import create_service_client
 
 
 DEFAULT_POLL_INTERVAL_SECONDS = 5.0
-DEFAULT_ANALYSIS_INTERVAL_SECONDS = 10.0
+DEFAULT_ANALYSIS_INTERVAL_SECONDS = 8.0
 
 
 def _poll_interval_seconds() -> float:

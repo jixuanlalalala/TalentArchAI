@@ -11,9 +11,9 @@ from services.analysis_worker_service import WorkerCycleResult  # noqa: E402
 
 
 class WorkerTests(unittest.TestCase):
-    def test_analysis_interval_defaults_to_ten_seconds(self):
+    def test_analysis_interval_defaults_to_eight_seconds(self):
         with patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(worker._analysis_interval_seconds(), 10.0)
+            self.assertEqual(worker._analysis_interval_seconds(), 8.0)
 
     def test_analysis_interval_must_be_positive(self):
         with patch.dict(
